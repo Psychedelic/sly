@@ -1,0 +1,17 @@
+[package]
+name = "bin"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+clap = { version = "3.0.0-beta.4", features = ["yaml"] }
+dialoguer = "0.8.0"
+codespan-reporting = "0.11.1"
+lalrpop = "0.19.6"
+lalrpop-util = "0.19.6"
+unindent = "0.1.7"
+ic-agent = "0.8.0"
+ic-utils = "0.6.0"
+candid = "0.7.7"
+serde = "1.0.130"
+serde_json = "1.0.68"
