@@ -1,5 +1,7 @@
+use anyhow::Result;
 use candid::Principal;
 use clap::{AppSettings, Clap};
+use std::convert::identity;
 
 #[derive(Clap)]
 #[clap(version = "0.1", author = "Psychedelic Team")]
@@ -27,6 +29,9 @@ pub enum AppSubCommands {
     /// Set of commands to manage the local replica and run management methods.
     #[clap(subcommand)]
     Replica(ReplicaSubCommands),
+    /// Utilities to work with WASM files.
+    #[clap(subcommand)]
+    Wasm(WasmSubCommands),
     /// Create a new project.
     New {
         /// The template to use for the new project.
@@ -146,8 +151,91 @@ pub enum ReplicaSubCommands {
     },
 }
 
+#[derive(Clap)]
+pub enum WasmSubCommands {
+    /// Run a WASM file.
+    Run {},
+    /// Run an optimizer on a WASM binary.
+    Optimize {
+        /// Path to the WASM file.
+        filename: String,
+        /// Where to write the optimized WASM.
+        #[clap(short, long)]
+        output: String,
+    },
+}
+
 fn is_principal(text: &str) -> Result<(), String> {
     Principal::from_text(text)
         .map(|_| ())
-        .map_err(|e| format!("Not a valid principal id."))
+        .map_err(|_| format!("Not a valid principal id."))
+}
+
+impl App {
+    pub fn run(&self) -> Result<()> {
+        match &self.sub {
+            AppSubCommands::Candid(s) => s.run(self),
+            AppSubCommands::Identity(s) => s.run(self),
+            AppSubCommands::Replica(s) => s.run(self),
+            AppSubCommands::Wasm(s) => s.run(self),
+            AppSubCommands::New { template } => crate::workspace::new::run(template.as_str()),
+            AppSubCommands::Deploy { canister, mode } => {
+                let canister = canister.clone();
+                crate::workspace::deploy::run(canister, mode.as_str())
+            }
+        }
+    }
+}
+
+impl CandidSubCommands {
+    pub fn run(&self, app: &App) -> Result<()> {
+        match self {
+            CandidSubCommands::Check { filename } => crate::candid::check::run(filename.as_str()),
+            CandidSubCommands::Format { filename, write } => {
+                crate::candid::format::run(filename.as_str(), *write)
+            }
+        }
+    }
+}
+
+impl IdentitySubCommands {
+    pub fn run(&self, app: &App) -> Result<()> {
+        use crate::identity;
+
+        match self {
+            IdentitySubCommands::List {} => identity::list::run(),
+            IdentitySubCommands::Create { name } => identity::create::run(name.as_str()),
+            IdentitySubCommands::Import { name, pem } => {
+                identity::import::run(name.as_str(), pem.as_str())
+            }
+            IdentitySubCommands::Use { name } => identity::default::run(name.as_str()),
+            IdentitySubCommands::Remove { name } => identity::remove::run(name.as_str()),
+            IdentitySubCommands::Rename { name, new_name } => identity::rename::run(name, new_name),
+            IdentitySubCommands::Whoami {} => identity::whoami::run(),
+        }
+    }
+}
+
+impl ReplicaSubCommands {
+    pub fn run(&self, app: &App) -> Result<()> {
+        match self {
+            ReplicaSubCommands::Start { .. } => todo!(),
+            ReplicaSubCommands::Stop { .. } => todo!(),
+            ReplicaSubCommands::Info { .. } => todo!(),
+            ReplicaSubCommands::CreateCanister { .. } => todo!(),
+            ReplicaSubCommands::Install { .. } => todo!(),
+            ReplicaSubCommands::DeleteCanister { .. } => todo!(),
+            ReplicaSubCommands::CanisterStatus { .. } => todo!(),
+            ReplicaSubCommands::AddController { .. } => todo!(),
+        }
+    }
+}
+
+impl WasmSubCommands {
+    pub fn run(&self, app: &App) -> Result<()> {
+        match self {
+            WasmSubCommands::Run { .. } => todo!(),
+            WasmSubCommands::Optimize { .. } => todo!(),
+        }
+    }
 }

@@ -1,2 +1,5 @@
-/// Start the local replica.
-pub fn run() {}
+use anyhow::Result;
+
+pub fn run() -> Result<()> {
+    Ok(())
+}

@@ -1,2 +1,5 @@
-/// Stop the running replica.
-pub fn run() {}
+use anyhow::Result;
+
+pub fn run() -> Result<()> {
+    Ok(())
+}
