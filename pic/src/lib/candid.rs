@@ -1,15 +1,16 @@
 use candid::parser::token::Span;
-use candid::parser::types::Dec;
+use candid::parser::types::{Dec, IDLType, PrimType};
 use candid::{check_file, IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
 use pathdiff::diff_paths;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Display, Formatter};
 use std::fs;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use thiserror::private::PathAsDisplay;
+use candid::types::Type;
+
+// TODO(qti3e) Move this file to Psychedelic/candid repository.
 
 /// A candid parser that supports includes and has proper error handling.
 pub struct CandidParser {
@@ -17,22 +18,19 @@ pub struct CandidParser {
     visited: BTreeSet<PathBuf>,
     /// The files loaded during the parsing.
     files: SimpleFiles<String, String>,
-    /// The IDLProg for each file.
-    programs: BTreeMap<usize, IDLProg>,
-    /// The imported files in order.
-    imports: Vec<usize>,
-    /// The collected TypeEnv for the entry file.
-    types: Option<TypeEnv>,
+    /// The IDLProg for each file, sorted by the import order.
+    programs: Vec<IDLProg>,
+    /// The type env.
+    env: TypeEnv
 }
 
 impl Default for CandidParser {
     fn default() -> Self {
         Self {
-            visited: Default::default(),
+            visited: BTreeSet::new(),
             files: SimpleFiles::new(),
-            programs: Default::default(),
-            imports: vec![],
-            types: None,
+            programs: Vec::new(),
+            env: TypeEnv::new()
         }
     }
 }
@@ -42,10 +40,86 @@ impl CandidParser {
     pub fn parse(&mut self, file: &str) -> Result<(), Diagnostic<usize>> {
         let cwd = std::env::current_dir().expect("Cannot get cwd.");
         let path = resolve_path(cwd.as_path(), file);
-        self.parse_file_recursive(path)
+        let mut visited = BTreeSet::new();
+        self.parse_file_recursive(path, &mut visited)
     }
 
-    fn parse_file_recursive(&mut self, path: PathBuf) -> Result<(), Diagnostic<usize>> {
+    /// Return the type context for the entire parsed candid files.
+    pub fn type_env(&mut self) -> Result<TypeEnv, Diagnostic<usize>> {
+        assert!(
+            !self.programs.is_empty(),
+            "Cannot obtain the type when no file is parsed."
+        );
+
+        self.env = TypeEnv::new();
+
+        for (file_id, prog) in self.programs.iter().enumerate().rev() {
+            for dec in &prog.decs {
+                match dec {
+                    Dec::TypD(binding) => {
+                        if self.env.0.contains_key(&binding.id.name) {
+                            return Err(Diagnostic::error()
+                                .with_message("Duplicate name.")
+                                .with_labels(vec![Label::primary(
+                                    file_id,
+                                    binding.id.span.clone(),
+                                )]));
+                        }
+                    }
+                    Dec::ImportD(_, _) => {}
+                }
+            }
+        }
+
+        println!("{:?}", self.imports);
+
+        todo!()
+    }
+
+    fn check_type(&self, file_id: usize, ty: &IDLType) -> Result<Type, Diagnostic<usize>> {
+        match ty {
+            IDLType::PrimT(p) => Ok(check_prim(p)),
+            IDLType::VarT(id) => {
+                match self.env.0.get(&id.name) {
+                    Some(ty) => {
+                        Ok(Type::Var(id.name.clone()))
+                    },
+                    None => {
+                        Err(Diagnostic::error()
+                            .with_message(format!("Unbound type identifier: {}", id.name))
+                            .with_labels(vec![
+                                Label::primary(file_id, id.span.clone())
+                            ])
+                        )
+                    }
+                }
+            }
+            IDLType::OptT(t) => {
+                let t = self.check_type(file_id, t)?;
+                Ok(Type::Opt(Box::new(t)))
+            }
+            IDLType::VecT(t) => {
+                let t = self.check_type(file_id, t)?;
+                Ok(Type::Vec(Box::new(t)))
+            }
+            IDLType::RecordT(_) => {}
+            IDLType::VariantT(_) => {}
+            IDLType::PrincipalT => Ok(Type::Principal),
+            IDLType::FuncT(_) => {}
+            IDLType::ServT(_) => {}
+            IDLType::ClassT(_, _) => {}
+        }
+    }
+
+    fn parse_file_recursive(
+        &mut self,
+        path: PathBuf,
+        visited: &mut BTreeSet<PathBuf>,
+    ) -> Result<(), Diagnostic<usize>> {
+        if visited.contains(&path) {
+            return Err(Diagnostic::error().with_message("Recursive import."));
+        }
+
         if self.visited.contains(&path) {
             // The file is already loaded so we don't need to load it again.
             return Ok(());
@@ -74,18 +148,20 @@ impl CandidParser {
             }
         }
 
-        self.programs.insert(file_id, program);
-        self.imports.push(file_id);
+        self.programs.push(program);
+
+        self.visited.insert(path.clone());
+        visited.insert(path.clone());
 
         for (path, range) in imports {
-            self.parse_file_recursive(path).map_err(|d| {
-                if d.labels.is_empty() {
-                    d.with_labels(vec![Label::primary(file_id, range)])
-                } else {
-                    d
-                }
+            self.parse_file_recursive(path, visited).map_err(|d| {
+                let label =
+                    Label::primary(file_id, range).with_message("Error originated from import.");
+                d.with_labels(vec![label])
             })?;
         }
+
+        visited.remove(&path);
 
         Ok(())
     }
@@ -186,33 +262,24 @@ fn report_expected(expected: &[String]) -> Vec<String> {
     vec![doc.pretty(70).to_string()]
 }
 
-#[test]
-fn x() {
-    let path = Path::new("/Users/qti3e/Code/icx/tmp/B.did");
-    let source = fs::read_to_string(&path).unwrap();
-    let prog: IDLProg = source.parse().unwrap();
-
-    println!("{:#?}", prog);
-    // println!("{:#?}", check_file(&path));
-}
-
-#[test]
-fn z() {
-    use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-
-    let mut parser = CandidParser::default();
-
-    if let Err(dia) = parser.parse("/Users/qti3e/Code/icx/tmp/B.did") {
-        let writer = StandardStream::stderr(ColorChoice::Always);
-        let config = codespan_reporting::term::Config::default();
-
-        codespan_reporting::term::emit(&mut writer.lock(), &config, &parser, &dia).unwrap();
+fn check_prim(prim: &PrimType) -> Type {
+    match prim {
+        PrimType::Nat => Type::Nat,
+        PrimType::Nat8 => Type::Nat8,
+        PrimType::Nat16 => Type::Nat16,
+        PrimType::Nat32 => Type::Nat32,
+        PrimType::Nat64 => Type::Nat64,
+        PrimType::Int => Type::Int,
+        PrimType::Int8 => Type::Int8,
+        PrimType::Int16 => Type::Int16,
+        PrimType::Int32 => Type::Int32,
+        PrimType::Int64 => Type::Int64,
+        PrimType::Float32 => Type::Float32,
+        PrimType::Float64 => Type::Float64,
+        PrimType::Bool => Type::Bool,
+        PrimType::Text => Type::Text,
+        PrimType::Null => Type::Null,
+        PrimType::Reserved => Type::Reserved,
+        PrimType::Empty => Type::Empty,
     }
 }
-
-// #[test]
-// fn y() {
-//     let mut parser = CandidParser::default();
-//     parser.parse("X.did");
-//     parser.type_env();
-// }
