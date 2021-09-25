@@ -4,6 +4,7 @@ mod identity;
 mod replica;
 mod wasm;
 mod workspace;
+mod lib;
 
 use clap::Clap;
 use human_panic::setup_panic;

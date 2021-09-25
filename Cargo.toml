@@ -10,3 +10,6 @@ overflow-checks = true
 
 [profile.bench]
 overflow-checks = true
+
+[patch.crates-io]
+candid = { git = 'https://github.com/Psychedelic/candid' }
