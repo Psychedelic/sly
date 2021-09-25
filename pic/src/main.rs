@@ -6,11 +6,11 @@ mod replica;
 mod wasm;
 mod workspace;
 
+use anyhow::Result;
 use clap::Clap;
 use human_panic::setup_panic;
 use log::LevelFilter;
 use pretty_env_logger::formatted_builder;
-use anyhow::Result;
 
 fn main() -> Result<()> {
     setup_panic!();

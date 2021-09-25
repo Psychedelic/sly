@@ -1,8 +1,8 @@
-use anyhow::Result;
 use crate::lib::candid::CandidParser;
-use codespan_reporting::term::termcolor::{StandardStream, ColorChoice};
-use codespan_reporting::term;
 use anyhow::bail;
+use anyhow::Result;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
 pub fn run(filename: &str) -> Result<()> {
     let mut parser = CandidParser::default();

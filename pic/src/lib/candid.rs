@@ -60,7 +60,9 @@ impl CandidParser {
         let file_id = self.files.add(display_name, source);
         let source = self.files.get(file_id).unwrap().source();
 
-        let program: IDLProg = source.parse().map_err(|e| todo!())?;
+        let program: IDLProg = source
+            .parse()
+            .map_err(|error| candid_error_to_diagnostic(file_id, error))?;
 
         let mut imports: Vec<(PathBuf, Span)> = Vec::new();
 
@@ -128,6 +130,60 @@ fn display_path(path: &PathBuf) -> String {
     let cwd = std::env::current_dir().expect("Cannot get cwd.");
     let relative = diff_paths(path, cwd).unwrap();
     relative.to_str().unwrap().to_string()
+}
+
+/// Convert an error produced by the candid parser to a diagnostic on the given file.
+fn candid_error_to_diagnostic(file_id: usize, error: candid::error::Error) -> Diagnostic<usize> {
+    use candid::error::Error;
+
+    match error {
+        Error::Parse(e) => {
+            use lalrpop_util::ParseError::*;
+            let mut diag = Diagnostic::error().with_message("Parser error");
+            let label = match e {
+                User { error } => {
+                    Label::primary(file_id, error.span.clone()).with_message(&error.err)
+                }
+                InvalidToken { location } => {
+                    Label::primary(file_id, location..location + 1).with_message("Invalid token")
+                }
+                UnrecognizedEOF { location, expected } => {
+                    diag = diag.with_notes(report_expected(&expected));
+                    Label::primary(file_id, location..location + 1).with_message("Unexpected EOF")
+                }
+                UnrecognizedToken { token, expected } => {
+                    diag = diag.with_notes(report_expected(&expected));
+                    Label::primary(file_id, token.0..token.2).with_message("Unexpected token")
+                }
+                ExtraToken { token } => {
+                    Label::primary(file_id, token.0..token.2).with_message("Extra token")
+                }
+            };
+            diag.with_labels(vec![label])
+        }
+        Error::Binread(labels) => {
+            unreachable!("Unexpected bin-read error.")
+        }
+        Error::Custom(e) => Diagnostic::error().with_message(e.to_string()),
+    }
+}
+
+fn report_expected(expected: &[String]) -> Vec<String> {
+    if expected.is_empty() {
+        return Vec::new();
+    }
+    use pretty::RcDoc;
+    let doc: RcDoc<()> = RcDoc::intersperse(
+        expected.iter().map(RcDoc::text),
+        RcDoc::text(",").append(RcDoc::softline()),
+    );
+    let header = if expected.len() == 1 {
+        "Expects"
+    } else {
+        "Expects one of"
+    };
+    let doc = RcDoc::text(header).append(RcDoc::softline().append(doc));
+    vec![doc.pretty(70).to_string()]
 }
 
 #[test]
