@@ -1,10 +1,10 @@
 mod candid;
 mod cli;
 mod identity;
+mod lib;
 mod replica;
 mod wasm;
 mod workspace;
-mod lib;
 
 use clap::Clap;
 use human_panic::setup_panic;

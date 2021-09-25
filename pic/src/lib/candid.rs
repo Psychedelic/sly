@@ -1,89 +1,117 @@
-use codespan_reporting::files::{Files, Error, SimpleFile};
+use candid::parser::token::Span;
+use candid::parser::types::Dec;
 use candid::{check_file, IDLProg, TypeEnv};
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-use std::ops::Range;
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
+use pathdiff::diff_paths;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
 use std::fs;
-use candid::parser::types::Dec;
+use std::ops::Range;
+use std::path::{Path, PathBuf};
+use thiserror::private::PathAsDisplay;
 
 /// A candid parser that supports includes and has proper error handling.
 pub struct CandidParser {
+    /// The files that are already visited to guard against infinite circular references.
+    visited: BTreeSet<PathBuf>,
     /// The files loaded during the parsing.
-    files: BTreeMap<String, CandidFile>,
-    /// Absolute path of the imported files, sorted by when we encountered them during
-    /// parsing. The entry file is always the first item.
-    imports: Vec<String>,
+    files: SimpleFiles<String, String>,
+    /// The IDLProg for each file.
+    programs: BTreeMap<usize, IDLProg>,
+    /// The imported files in order.
+    imports: Vec<usize>,
     /// The collected TypeEnv for the entry file.
-    types: Option<TypeEnv>
+    types: Option<TypeEnv>,
 }
 
-struct CandidFile {
-    source: SimpleFile<FileNameHack, String>,
-    program: Option<IDLProg>,
+impl Default for CandidParser {
+    fn default() -> Self {
+        Self {
+            visited: Default::default(),
+            files: SimpleFiles::new(),
+            programs: Default::default(),
+            imports: vec![],
+            types: None,
+        }
+    }
 }
 
 impl CandidParser {
-    pub fn from_path(filename: &str) {
+    /// Try to parse a file.
+    pub fn parse(&mut self, file: &str) -> Result<(), Diagnostic<usize>> {
+        let cwd = std::env::current_dir().expect("Cannot get cwd.");
+        let path = resolve_path(cwd.as_path(), file);
+        self.parse_file_recursive(path)
     }
 
-    fn load_file_recursive(&mut self, base: &Path, file: &str) {
-        let path = resolve_path(base, file);
-        let path_as_string = path.to_string_lossy().to_string();
-
-        if self.files.contains_key(&path_as_string) {
-            // The file is already loaded don't try to load it again.
-            return;
+    fn parse_file_recursive(&mut self, path: PathBuf) -> Result<(), Diagnostic<usize>> {
+        if self.visited.contains(&path) {
+            // The file is already loaded so we don't need to load it again.
+            return Ok(());
         }
 
-        let source = fs::read_to_string(path);
-    }
+        let display_name = display_path(&path);
 
-    fn visit_imports(&self, base: &Path, prog: &IDLProg) {
-        for dec in &prog.decs {
+        let source = fs::read_to_string(&path).map_err(|e| {
+            Diagnostic::error().with_message(format!("Cannot read file '{}': {}", display_name, e))
+        })?;
+
+        let file_id = self.files.add(display_name, source);
+        let source = self.files.get(file_id).unwrap().source();
+
+        let program: IDLProg = source.parse().map_err(|e| todo!())?;
+
+        let mut imports: Vec<(PathBuf, Span)> = Vec::new();
+
+        // Now resolve the imports.
+        let base = path.parent().unwrap();
+        for dec in &program.decs {
             if let Dec::ImportD(file, loc) = dec {
-                let path = resolve_path(base, file);
+                imports.push((resolve_path(base, file.as_str()), loc.clone()));
             }
         }
-    }
 
-    fn get(&self, id: &String) -> Result<&CandidFile, Error> {
-        self.files.get(id).ok_or(Error::FileMissing)
+        self.programs.insert(file_id, program);
+        self.imports.push(file_id);
+
+        for (path, range) in imports {
+            self.parse_file_recursive(path).map_err(|d| {
+                if d.labels.is_empty() {
+                    d.with_labels(vec![Label::primary(file_id, range)])
+                } else {
+                    d
+                }
+            })?;
+        }
+
+        Ok(())
     }
 }
 
 impl<'a> Files<'a> for CandidParser {
-    type FileId = &'a String;
-    type Name = &'a String;
+    type FileId = usize;
+    type Name = String;
     type Source = &'a str;
 
     fn name(&'a self, id: Self::FileId) -> Result<Self::Name, Error> {
-        Ok(self.files.get_key_value(id).ok_or(Error::FileMissing)?.0)
+        self.files.name(id)
     }
 
     fn source(&'a self, id: Self::FileId) -> Result<Self::Source, Error> {
-        Ok(self.get(id)?.source.source())
+        self.files.source(id)
     }
 
     fn line_index(&'a self, id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
-        self.get(id)?.source.line_index((), byte_index)
+        self.files.line_index(id, byte_index)
     }
 
     fn line_range(&'a self, id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
-        self.get(id)?.source.line_range((), line_index)
+        self.files.line_range(id, line_index)
     }
 }
 
-/// A new-type type which implements Display so it can be used as Name in SimpleFile.
-#[derive(Debug, Copy, Clone)]
-struct FileNameHack();
-
-impl Display for FileNameHack {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "FILE")
-    }
-}
-
+/// Join two paths together.
 fn resolve_path(base: &Path, file: &str) -> PathBuf {
     let file = shellexpand::tilde(file);
     let file = PathBuf::from(file.as_ref());
@@ -92,6 +120,14 @@ fn resolve_path(base: &Path, file: &str) -> PathBuf {
     } else {
         base.join(file)
     }
+}
+
+/// Compute the relative path to the given path from the cwd and return the result as an
+/// string.
+fn display_path(path: &PathBuf) -> String {
+    let cwd = std::env::current_dir().expect("Cannot get cwd.");
+    let relative = diff_paths(path, cwd).unwrap();
+    relative.to_str().unwrap().to_string()
 }
 
 #[test]
@@ -103,3 +139,24 @@ fn x() {
     println!("{:#?}", prog);
     // println!("{:#?}", check_file(&path));
 }
+
+#[test]
+fn z() {
+    use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+
+    let mut parser = CandidParser::default();
+
+    if let Err(dia) = parser.parse("/Users/qti3e/Code/icx/tmp/B.did") {
+        let writer = StandardStream::stderr(ColorChoice::Always);
+        let config = codespan_reporting::term::Config::default();
+
+        codespan_reporting::term::emit(&mut writer.lock(), &config, &parser, &dia).unwrap();
+    }
+}
+
+// #[test]
+// fn y() {
+//     let mut parser = CandidParser::default();
+//     parser.parse("X.did");
+//     parser.type_env();
+// }
