@@ -1,6 +1,7 @@
 use candid::parser::token::Span;
-use candid::parser::types::{Dec, IDLType, PrimType};
-use candid::types::Type;
+use candid::parser::types::{Dec, IDLType, PrimType, TypeField};
+use candid::parser::value::IDLField;
+use candid::types::{Field, Type};
 use candid::{check_file, IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
@@ -101,13 +102,38 @@ impl CandidParser {
                 let t = self.check_type(file_id, t)?;
                 Ok(Type::Vec(Box::new(t)))
             }
-            IDLType::RecordT(_) => todo!(),
-            IDLType::VariantT(_) => todo!(),
+            IDLType::RecordT(fields) => {
+                let fs = self.check_fields(file_id, fields)?;
+                Ok(Type::Record(fs))
+            }
+            IDLType::VariantT(fields) => {
+                let fs = self.check_fields(file_id, fields)?;
+                Ok(Type::Variant(fs))
+            }
             IDLType::PrincipalT => Ok(Type::Principal),
             IDLType::FuncT(_) => todo!(),
             IDLType::ServT(_) => todo!(),
             IDLType::ClassT(_, _) => todo!(),
         }
+    }
+
+    fn check_fields(
+        &self,
+        file_id: usize,
+        fields: &[TypeField],
+    ) -> Result<Vec<Field>, Diagnostic<usize>> {
+        // Field label duplication is checked in the parser.
+        let mut res = Vec::new();
+
+        for f in fields {
+            let ty = self.check_type(file_id, &f.typ)?;
+            res.push(Field {
+                id: f.label.clone(),
+                ty,
+            });
+        }
+
+        Ok(res)
     }
 
     fn parse_file_recursive(
