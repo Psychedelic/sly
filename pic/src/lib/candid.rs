@@ -1,5 +1,6 @@
 use candid::parser::token::Span;
 use candid::parser::types::{Dec, IDLType, PrimType};
+use candid::types::Type;
 use candid::{check_file, IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
@@ -8,7 +9,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use candid::types::Type;
 
 // TODO(qti3e) Move this file to Psychedelic/candid repository.
 
@@ -20,8 +20,10 @@ pub struct CandidParser {
     files: SimpleFiles<String, String>,
     /// The IDLProg for each file, sorted by the import order.
     programs: Vec<IDLProg>,
+    /// The position for defined types.
+    binding_positions: BTreeMap<String, (usize, Span)>,
     /// The type env.
-    env: TypeEnv
+    env: TypeEnv,
 }
 
 impl Default for CandidParser {
@@ -30,7 +32,8 @@ impl Default for CandidParser {
             visited: BTreeSet::new(),
             files: SimpleFiles::new(),
             programs: Vec::new(),
-            env: TypeEnv::new()
+            binding_positions: BTreeMap::new(),
+            env: TypeEnv::new(),
         }
     }
 }
@@ -53,6 +56,7 @@ impl CandidParser {
 
         self.env = TypeEnv::new();
 
+        // Load all of the defined types in all of the candid files.
         for (file_id, prog) in self.programs.iter().enumerate().rev() {
             for dec in &prog.decs {
                 match dec {
@@ -65,13 +69,17 @@ impl CandidParser {
                                     binding.id.span.clone(),
                                 )]));
                         }
+
+                        let ty = self.check_type(file_id, &binding.typ)?;
+                        let name = &binding.id.name;
+                        self.env.0.insert(name.clone(), ty);
+                        self.binding_positions
+                            .insert(name.clone(), (file_id, binding.id.span.clone()));
                     }
                     Dec::ImportD(_, _) => {}
                 }
             }
         }
-
-        println!("{:?}", self.imports);
 
         todo!()
     }
@@ -79,21 +87,12 @@ impl CandidParser {
     fn check_type(&self, file_id: usize, ty: &IDLType) -> Result<Type, Diagnostic<usize>> {
         match ty {
             IDLType::PrimT(p) => Ok(check_prim(p)),
-            IDLType::VarT(id) => {
-                match self.env.0.get(&id.name) {
-                    Some(ty) => {
-                        Ok(Type::Var(id.name.clone()))
-                    },
-                    None => {
-                        Err(Diagnostic::error()
-                            .with_message(format!("Unbound type identifier: {}", id.name))
-                            .with_labels(vec![
-                                Label::primary(file_id, id.span.clone())
-                            ])
-                        )
-                    }
-                }
-            }
+            IDLType::VarT(id) => match self.env.0.get(&id.name) {
+                Some(ty) => Ok(Type::Var(id.name.clone())),
+                None => Err(Diagnostic::error()
+                    .with_message(format!("Unbound type identifier: {}", id.name))
+                    .with_labels(vec![Label::primary(file_id, id.span.clone())])),
+            },
             IDLType::OptT(t) => {
                 let t = self.check_type(file_id, t)?;
                 Ok(Type::Opt(Box::new(t)))
@@ -102,12 +101,12 @@ impl CandidParser {
                 let t = self.check_type(file_id, t)?;
                 Ok(Type::Vec(Box::new(t)))
             }
-            IDLType::RecordT(_) => {}
-            IDLType::VariantT(_) => {}
+            IDLType::RecordT(_) => todo!(),
+            IDLType::VariantT(_) => todo!(),
             IDLType::PrincipalT => Ok(Type::Principal),
-            IDLType::FuncT(_) => {}
-            IDLType::ServT(_) => {}
-            IDLType::ClassT(_, _) => {}
+            IDLType::FuncT(_) => todo!(),
+            IDLType::ServT(_) => todo!(),
+            IDLType::ClassT(_, _) => todo!(),
         }
     }
 
