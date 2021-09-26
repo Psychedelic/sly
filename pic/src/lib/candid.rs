@@ -1,7 +1,7 @@
 use candid::parser::token::Span;
-use candid::parser::types::{Dec, IDLType, PrimType, TypeField};
+use candid::parser::types::{Binding, Dec, FuncMode, IDLType, PrimType, ToDoc, TypeField};
 use candid::parser::value::IDLField;
-use candid::types::{Field, Type};
+use candid::types::{Field, Function, Type};
 use candid::{check_file, IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
@@ -63,24 +63,38 @@ impl CandidParser {
                 match dec {
                     Dec::TypD(binding) => {
                         if self.env.0.contains_key(&binding.id.name) {
+                            let pos = self
+                                .binding_positions
+                                .get(&binding.id.name)
+                                .unwrap()
+                                .clone();
                             return Err(Diagnostic::error()
                                 .with_message("Duplicate name.")
-                                .with_labels(vec![Label::primary(
-                                    file_id,
-                                    binding.id.span.clone(),
-                                )]));
+                                .with_labels(vec![
+                                    Label::primary(file_id, binding.id.span.clone()),
+                                    Label::secondary(pos.0, pos.1)
+                                        .with_message("Another definition was found here."),
+                                ]));
                         }
 
-                        let ty = self.check_type(file_id, &binding.typ)?;
+                        let span = binding.id.span.clone();
+
+                        let ty = self.check_type(file_id, &binding.typ).map_err(|d| {
+                            let label = Label::secondary(file_id, span.clone())
+                                .with_message("Error originated from this binding.");
+                            d.with_labels(vec![label])
+                        })?;
+
                         let name = &binding.id.name;
                         self.env.0.insert(name.clone(), ty);
-                        self.binding_positions
-                            .insert(name.clone(), (file_id, binding.id.span.clone()));
+                        self.binding_positions.insert(name.clone(), (file_id, span));
                     }
                     Dec::ImportD(_, _) => {}
                 }
             }
         }
+
+        // TODO(qti3e) Type check actor service.
 
         todo!()
     }
@@ -89,7 +103,7 @@ impl CandidParser {
         match ty {
             IDLType::PrimT(p) => Ok(check_prim(p)),
             IDLType::VarT(id) => match self.env.0.get(&id.name) {
-                Some(ty) => Ok(Type::Var(id.name.clone())),
+                Some(_) => Ok(Type::Var(id.name.clone())),
                 None => Err(Diagnostic::error()
                     .with_message(format!("Unbound type identifier: {}", id.name))
                     .with_labels(vec![Label::primary(file_id, id.span.clone())])),
@@ -111,9 +125,41 @@ impl CandidParser {
                 Ok(Type::Variant(fs))
             }
             IDLType::PrincipalT => Ok(Type::Principal),
-            IDLType::FuncT(_) => todo!(),
-            IDLType::ServT(_) => todo!(),
-            IDLType::ClassT(_, _) => todo!(),
+            IDLType::FuncT(func) => {
+                let mut args = Vec::new();
+                for t in func.args.iter() {
+                    args.push(self.check_type(file_id, t)?);
+                }
+
+                let mut rets = Vec::new();
+                for t in func.rets.iter() {
+                    rets.push(self.check_type(file_id, t)?);
+                }
+
+                if func.modes.len() > 1 {
+                    return Err(Diagnostic::error().with_message("Cannot have more than one mode"));
+                }
+
+                if func.modes.len() == 1 && func.modes[0] == FuncMode::Oneway && !rets.is_empty() {
+                    return Err(Diagnostic::error()
+                        .with_message("Oneway function has non-unit return type"));
+                }
+
+                let f = Function {
+                    modes: func.modes.clone(),
+                    args,
+                    rets,
+                };
+
+                Ok(Type::Func(f))
+            }
+            IDLType::ServT(bindings) => {
+                let ms = self.check_methods(file_id, bindings)?;
+                Ok(Type::Service(ms))
+            }
+            IDLType::ClassT(_, _) => {
+                Err(Diagnostic::error().with_message("Service constructor not supported"))
+            }
         }
     }
 
@@ -134,6 +180,66 @@ impl CandidParser {
         }
 
         Ok(res)
+    }
+
+    fn check_methods(
+        &self,
+        file_id: usize,
+        bindings: &[Binding],
+    ) -> Result<Vec<(String, Type)>, Diagnostic<usize>> {
+        let mut res = Vec::new();
+
+        for meth in bindings.iter() {
+            let t = self.check_type(file_id, &meth.typ)?;
+
+            self.resolve_type_as_func(&t).map_err(|d| {
+                let span = meth.id.span.clone();
+                let label = Label::primary(file_id, span)
+                    .with_message(format!("Method {} has a non-function type.", meth.id.name,));
+                d.with_labels(vec![label])
+            })?;
+
+            res.push((meth.id.name.to_owned(), t));
+        }
+
+        Ok(res)
+    }
+
+    /// Resolve a type as a function, this method also guards against circular references.
+    fn resolve_type_as_func<'a>(
+        &'a self,
+        mut ty: &'a Type,
+    ) -> Result<&'a Function, Diagnostic<usize>> {
+        let mut visited = BTreeSet::new();
+
+        loop {
+            match ty {
+                Type::Var(name) => {
+                    if !visited.insert(name.clone()) {
+                        // We've seen the type before, so we were able to resolve it, so it exists
+                        // so we can unwrap here.
+                        let (file_id, span) = self.binding_positions.get(name).unwrap().clone();
+                        let label = Label::primary(file_id, span).with_message("Circular type.");
+                        return Err(Diagnostic::error()
+                            .with_message(format!("Type {} has circular definition.", name))
+                            .with_labels(vec![label]));
+                    }
+
+                    ty = match self.env.0.get(name) {
+                        None => {
+                            return Err(Diagnostic::error()
+                                .with_message(format!("Unbound type identifier: {}", name)))
+                        }
+                        Some(ty) => ty,
+                    };
+                }
+                Type::Func(f) => return Ok(f),
+                typ => {
+                    return Err(Diagnostic::error()
+                        .with_message(format!("Not a function type: Type={}", typ)))
+                }
+            }
+        }
     }
 
     fn parse_file_recursive(
@@ -181,7 +287,7 @@ impl CandidParser {
         for (path, range) in imports {
             self.parse_file_recursive(path, visited).map_err(|d| {
                 let label =
-                    Label::primary(file_id, range).with_message("Error originated from import.");
+                    Label::secondary(file_id, range).with_message("Error originated from import.");
                 d.with_labels(vec![label])
             })?;
         }
@@ -262,7 +368,7 @@ fn candid_error_to_diagnostic(file_id: usize, error: candid::error::Error) -> Di
             };
             diag.with_labels(vec![label])
         }
-        Error::Binread(labels) => {
+        Error::Binread(_) => {
             unreachable!("Unexpected bin-read error.")
         }
         Error::Custom(e) => Diagnostic::error().with_message(e.to_string()),
