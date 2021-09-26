@@ -108,11 +108,11 @@ impl CandidParser {
     }
 
     /// Return the type env for all the type-checked files.
-    pub fn get_service_for(&self, file: &str) -> Option<&Type> {
+    pub fn get_service_for(&self, file: &str) -> &Option<Type> {
         let cwd = std::env::current_dir().expect("Cannot get cwd.");
         let path = resolve_path(cwd.as_path(), file);
         let file_id = *self.visited.get(&path).expect("File not loaded.");
-        self.services[file_id].as_ref()
+        &self.services[file_id]
     }
 
     /// Format all of the loaded sources and write the result to the original files.

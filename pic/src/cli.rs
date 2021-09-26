@@ -59,6 +59,23 @@ pub enum CandidSubCommands {
         /// Path to the candid files to format.
         files: Vec<String>,
     },
+    /// Generate codes for the Candid files.
+    Gen {
+        /// Path to the candid files.
+        files: Vec<String>,
+        #[clap(short, long)]
+        /// Directory
+        out_dir: String,
+        /// Generate JavaScript language bindings.
+        #[clap(long)]
+        js: bool,
+        /// Generate TypeScript language bindings.
+        #[clap(long)]
+        ts: bool,
+        /// Generate Motoko language bindings.
+        #[clap(long)]
+        motoko: bool,
+    },
 }
 
 #[derive(Clap)]
@@ -184,9 +201,26 @@ impl App {
 
 impl CandidSubCommands {
     pub fn run(&self, app: &App) -> Result<()> {
+        use crate::candid::gen::Languages;
+
         match self {
             CandidSubCommands::Check { filename } => crate::candid::check::run(filename.as_str()),
             CandidSubCommands::Format { files } => crate::candid::format::run(files),
+            CandidSubCommands::Gen {
+                files,
+                out_dir,
+                js,
+                ts,
+                motoko,
+            } => crate::candid::gen::run(
+                files,
+                out_dir,
+                Languages {
+                    javascript: *js,
+                    typescript: *ts,
+                    motoko: *motoko,
+                },
+            ),
         }
     }
 }
