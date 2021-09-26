@@ -56,12 +56,8 @@ pub enum CandidSubCommands {
     },
     /// Format a candid file.
     Format {
-        /// Path to the candid file.
-        filename: String,
-        /// If true the formatted version will be written to the input file, otherwise it'll
-        /// be printed to the stdout.
-        #[clap(short)]
-        write: bool,
+        /// Path to the candid files to format.
+        files: Vec<String>,
     },
 }
 
@@ -190,9 +186,7 @@ impl CandidSubCommands {
     pub fn run(&self, app: &App) -> Result<()> {
         match self {
             CandidSubCommands::Check { filename } => crate::candid::check::run(filename.as_str()),
-            CandidSubCommands::Format { filename, write } => {
-                crate::candid::format::run(filename.as_str(), *write)
-            }
+            CandidSubCommands::Format { files } => crate::candid::format::run(files),
         }
     }
 }

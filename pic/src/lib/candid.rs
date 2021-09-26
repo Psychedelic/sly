@@ -1,5 +1,5 @@
 use candid::parser::token::Span;
-use candid::parser::types::{Binding, Dec, FuncMode, IDLType, PrimType, TypeField};
+use candid::parser::types::{Binding, Dec, FuncMode, IDLType, PrimType, ToDoc, TypeField};
 use candid::types::{Field, Function, Type};
 use candid::{IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -113,6 +113,14 @@ impl CandidParser {
         let path = resolve_path(cwd.as_path(), file);
         let file_id = *self.visited.get(&path).expect("File not loaded.");
         self.services[file_id].as_ref()
+    }
+
+    /// Format all of the loaded sources and write the result to the original files.
+    pub fn format_all(&self) {
+        for (path, file_id) in &self.visited {
+            let source = self.programs[*file_id].to_doc().pretty(80).to_string();
+            fs::write(path, source).expect("Failed to write to candid file.");
+        }
     }
 
     fn check_type(&self, file_id: usize, ty: &IDLType) -> Result<Type, Diagnostic<usize>> {
