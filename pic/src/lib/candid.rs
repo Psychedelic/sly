@@ -1,10 +1,9 @@
 use candid::parser::token::Span;
-use candid::parser::types::{Binding, Dec, FuncMode, IDLType, PrimType, ToDoc, TypeField};
-use candid::parser::value::IDLField;
+use candid::parser::types::{Binding, Dec, FuncMode, IDLType, PrimType, TypeField};
 use candid::types::{Field, Function, Type};
-use candid::{check_file, IDLProg, TypeEnv};
+use candid::{IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
-use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
+use codespan_reporting::files::{Error, Files, SimpleFiles};
 use pathdiff::diff_paths;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -16,11 +15,13 @@ use std::path::{Path, PathBuf};
 /// A candid parser that supports includes and has proper error handling.
 pub struct CandidParser {
     /// The files that are already visited to guard against infinite circular references.
-    visited: BTreeSet<PathBuf>,
+    visited: BTreeMap<PathBuf, usize>,
     /// The files loaded during the parsing.
     files: SimpleFiles<String, String>,
     /// The IDLProg for each file, sorted by the import order.
     programs: Vec<IDLProg>,
+    /// The actor service for all the type-checked files.
+    services: Vec<Option<Type>>,
     /// The position for defined types.
     binding_positions: BTreeMap<String, (usize, Span)>,
     /// The type env.
@@ -30,9 +31,10 @@ pub struct CandidParser {
 impl Default for CandidParser {
     fn default() -> Self {
         Self {
-            visited: BTreeSet::new(),
+            visited: BTreeMap::new(),
             files: SimpleFiles::new(),
             programs: Vec::new(),
+            services: Vec::new(),
             binding_positions: BTreeMap::new(),
             env: TypeEnv::new(),
         }
@@ -48,8 +50,8 @@ impl CandidParser {
         self.parse_file_recursive(path, &mut visited)
     }
 
-    /// Return the type context for the entire parsed candid files.
-    pub fn type_env(&mut self) -> Result<TypeEnv, Diagnostic<usize>> {
+    /// Construct the type environment for the parsed files.
+    pub fn construct_type_env(&mut self) -> Result<(), Diagnostic<usize>> {
         assert!(
             !self.programs.is_empty(),
             "Cannot obtain the type when no file is parsed."
@@ -92,11 +94,25 @@ impl CandidParser {
                     Dec::ImportD(_, _) => {}
                 }
             }
+
+            let actor = self.check_actor(file_id, &prog.actor)?;
+            self.services.push(actor);
         }
 
-        // TODO(qti3e) Type check actor service.
+        Ok(())
+    }
 
-        todo!()
+    /// Return the type env for all the files.
+    pub fn get_type_env(&self) -> &TypeEnv {
+        &self.env
+    }
+
+    /// Return the type env for all the type-checked files.
+    pub fn get_service_for(&self, file: &str) -> Option<&Type> {
+        let cwd = std::env::current_dir().expect("Cannot get cwd.");
+        let path = resolve_path(cwd.as_path(), file);
+        let file_id = *self.visited.get(&path).expect("File not loaded.");
+        self.services[file_id].as_ref()
     }
 
     fn check_type(&self, file_id: usize, ty: &IDLType) -> Result<Type, Diagnostic<usize>> {
@@ -205,11 +221,31 @@ impl CandidParser {
         Ok(res)
     }
 
-    /// Resolve a type as a function, this method also guards against circular references.
-    fn resolve_type_as_func<'a>(
-        &'a self,
-        mut ty: &'a Type,
-    ) -> Result<&'a Function, Diagnostic<usize>> {
+    fn check_actor(
+        &self,
+        file_id: usize,
+        actor: &Option<IDLType>,
+    ) -> Result<Option<Type>, Diagnostic<usize>> {
+        match actor {
+            None => Ok(None),
+            Some(IDLType::ClassT(ts, t)) => {
+                let mut args = Vec::new();
+                for arg in ts.iter() {
+                    args.push(self.check_type(file_id, arg)?);
+                }
+                let serv = self.check_type(file_id, t)?;
+                self.resolve_type_as_service(&serv)?;
+                Ok(Some(Type::Class(args, Box::new(serv))))
+            }
+            Some(typ) => {
+                let t = self.check_type(file_id, typ)?;
+                self.resolve_type_as_service(&t)?;
+                Ok(Some(t))
+            }
+        }
+    }
+
+    fn resolve_var<'a>(&'a self, mut ty: &'a Type) -> Result<&'a Type, Diagnostic<usize>> {
         let mut visited = BTreeSet::new();
 
         loop {
@@ -233,11 +269,29 @@ impl CandidParser {
                         Some(ty) => ty,
                     };
                 }
-                Type::Func(f) => return Ok(f),
-                typ => {
-                    return Err(Diagnostic::error()
-                        .with_message(format!("Not a function type: Type={}", typ)))
-                }
+                t => return Ok(t),
+            }
+        }
+    }
+
+    fn resolve_type_as_func<'a>(&'a self, ty: &'a Type) -> Result<&'a Function, Diagnostic<usize>> {
+        match self.resolve_var(ty)? {
+            Type::Func(f) => Ok(f),
+            typ => {
+                Err(Diagnostic::error().with_message(format!("Not a function type: Type={}", typ)))
+            }
+        }
+    }
+
+    fn resolve_type_as_service<'a>(
+        &'a self,
+        ty: &'a Type,
+    ) -> Result<&'a [(String, Type)], Diagnostic<usize>> {
+        match self.resolve_var(ty)? {
+            Type::Service(f) => Ok(f),
+            Type::Class(_, t) => self.resolve_type_as_service(t),
+            typ => {
+                Err(Diagnostic::error().with_message(format!("Not a service type: Type={}", typ)))
             }
         }
     }
@@ -251,7 +305,7 @@ impl CandidParser {
             return Err(Diagnostic::error().with_message("Recursive import."));
         }
 
-        if self.visited.contains(&path) {
+        if self.visited.contains_key(&path) {
             // The file is already loaded so we don't need to load it again.
             return Ok(());
         }
@@ -281,7 +335,7 @@ impl CandidParser {
 
         self.programs.push(program);
 
-        self.visited.insert(path.clone());
+        self.visited.insert(path.clone(), file_id);
         visited.insert(path.clone());
 
         for (path, range) in imports {

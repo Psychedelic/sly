@@ -1,7 +1,6 @@
 use anyhow::Result;
 use candid::Principal;
 use clap::{AppSettings, Clap};
-use std::convert::identity;
 
 #[derive(Clap)]
 #[clap(version = "0.1", author = "Psychedelic Team")]

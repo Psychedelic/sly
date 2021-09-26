@@ -8,7 +8,7 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 pub fn run(filename: &str) -> Result<()> {
     let mut parser = CandidParser::default();
 
-    let maybe_env = result_flatten(parser.parse(filename).map(|_| parser.type_env()));
+    let maybe_env = result_flatten(parser.parse(filename).map(|_| parser.construct_type_env()));
 
     if let Err(diagnostic) = maybe_env {
         let writer = StandardStream::stderr(ColorChoice::Always);
