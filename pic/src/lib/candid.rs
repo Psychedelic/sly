@@ -59,37 +59,46 @@ impl CandidParser {
 
         self.env = TypeEnv::new();
 
-        // Load all of the defined types in all of the candid files.
+        // Define all of the bindings across all the imported files first.
         for (file_id, prog) in self.programs.iter().enumerate().rev() {
             for dec in &prog.decs {
                 match dec {
                     Dec::TypD(binding) => {
-                        if self.env.0.contains_key(&binding.id.name) {
-                            let pos = self
-                                .binding_positions
-                                .get(&binding.id.name)
-                                .unwrap()
-                                .clone();
+                        let name = &binding.id.name;
+                        let span = binding.id.span.clone();
+
+                        if let Some(pos) = self.binding_positions.get(name) {
                             return Err(Diagnostic::error()
                                 .with_message("Duplicate name.")
                                 .with_labels(vec![
-                                    Label::primary(file_id, binding.id.span.clone()),
-                                    Label::secondary(pos.0, pos.1)
+                                    Label::primary(file_id, span.clone()),
+                                    Label::secondary(pos.0, pos.1.clone())
                                         .with_message("Another definition was found here."),
                                 ]));
                         }
 
+                        self.binding_positions.insert(name.clone(), (file_id, span));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Now type check the files.
+        for (file_id, prog) in self.programs.iter().enumerate().rev() {
+            for dec in &prog.decs {
+                match dec {
+                    Dec::TypD(binding) => {
                         let span = binding.id.span.clone();
 
                         let ty = self.check_type(file_id, &binding.typ).map_err(|d| {
-                            let label = Label::secondary(file_id, span.clone())
+                            let label = Label::secondary(file_id, span)
                                 .with_message("Error originated from this binding.");
                             d.with_labels(vec![label])
                         })?;
 
                         let name = &binding.id.name;
                         self.env.0.insert(name.clone(), ty);
-                        self.binding_positions.insert(name.clone(), (file_id, span));
                     }
                     Dec::ImportD(_, _) => {}
                 }
@@ -97,6 +106,11 @@ impl CandidParser {
 
             let actor = self.check_actor(file_id, &prog.actor)?;
             self.services.push(actor);
+        }
+
+        // Now check for circular references.
+        for (name, (file_id, span)) in &self.binding_positions {
+            self.resolve_var(&Type::Var(name.clone()))?;
         }
 
         Ok(())
@@ -126,9 +140,9 @@ impl CandidParser {
     fn check_type(&self, file_id: usize, ty: &IDLType) -> Result<Type, Diagnostic<usize>> {
         match ty {
             IDLType::PrimT(p) => Ok(check_prim(p)),
-            IDLType::VarT(id) => match self.env.0.get(&id.name) {
-                Some(_) => Ok(Type::Var(id.name.clone())),
-                None => Err(Diagnostic::error()
+            IDLType::VarT(id) => match self.binding_positions.contains_key(&id.name) {
+                true => Ok(Type::Var(id.name.clone())),
+                false => Err(Diagnostic::error()
                     .with_message(format!("Unbound type identifier: {}", id.name))
                     .with_labels(vec![Label::primary(file_id, id.span.clone())])),
             },
