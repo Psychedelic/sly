@@ -1,14 +1,27 @@
 use anyhow::{bail, Context};
+use dirs::config_dir;
 use ic_agent::identity::BasicIdentity;
 use ic_agent::Identity;
 use mkdirp::mkdirp;
+use once_cell::sync::Lazy;
 use pem::{encode, Pem};
 use ring::signature::Ed25519KeyPair;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
 
+static STORE: Lazy<Mutex<IdentityStore>> = Lazy::new(|| {
+    let dir = config_dir()
+        .expect("Cannot find the config dir.")
+        .join("pic")
+        .join("identities");
+    let identity = IdentityStore::load(dir).expect("Failed to init the identity store.");
+    Mutex::new(identity)
+});
+
+/// A data store that keeps the identities loaded by a user.
 pub struct IdentityStore {
     directory: PathBuf,
     current: String,
@@ -22,8 +35,16 @@ pub struct Config {
 }
 
 impl IdentityStore {
-    /// Read the directory and load the identity store.
-    fn load(directory: PathBuf) -> anyhow::Result<Self> {
+    /// Acquire a mutex lock on the IdentityStore.
+    pub fn lock() -> anyhow::Result<MutexGuard<'static, IdentityStore>> {
+        match STORE.lock() {
+            Ok(guard) => Ok(guard),
+            Err(e) => bail!("Can not acquire the lock on the identity store {}", e),
+        }
+    }
+
+    /// Load an identity store from the given path or init one if it doesn't already exists.
+    pub fn load(directory: PathBuf) -> anyhow::Result<Self> {
         log::trace!(
             "Loading the identity store from the directory {:?}",
             directory
@@ -77,7 +98,7 @@ impl IdentityStore {
             }
             _ => {
                 let default = store.identities.keys().next().unwrap().clone();
-                log::error!(
+                log::info!(
                     "Could not load the default identity. Changing the default identity to '{}'",
                     default
                 );
@@ -222,8 +243,18 @@ impl IdentityStore {
     }
 
     /// Return the default identity that should be used.
-    pub fn get_identity(&self) -> &Box<dyn Identity> {
+    pub fn get_current_identity(&self) -> &Box<dyn Identity> {
         self.identities.get(&self.current).unwrap()
+    }
+
+    /// Return an iterator over the name of all the loaded identities.
+    pub fn identity_names(&self) -> impl Iterator<Item = &String> {
+        self.identities.keys()
+    }
+
+    /// Return the identity by name.
+    pub fn get_identity(&self, name: &str) -> Option<&Box<dyn Identity>> {
+        self.identities.get(name)
     }
 }
 

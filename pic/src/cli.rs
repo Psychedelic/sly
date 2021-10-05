@@ -113,6 +113,8 @@ pub enum IdentitySubCommands {
     },
     /// Print the current default identity.
     Whoami {},
+    /// Print the principal id of the current identity.
+    GetPrincipal {},
 }
 
 #[derive(Clap)]
@@ -239,6 +241,7 @@ impl IdentitySubCommands {
             IdentitySubCommands::Remove { name } => identity::remove::run(name.as_str()),
             IdentitySubCommands::Rename { name, new_name } => identity::rename::run(name, new_name),
             IdentitySubCommands::Whoami {} => identity::whoami::run(),
+            IdentitySubCommands::GetPrincipal {} => identity::get_principal::run(),
         }
     }
 }

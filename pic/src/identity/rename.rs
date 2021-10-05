@@ -1,5 +1,7 @@
+use crate::lib::identity::IdentityStore;
 use anyhow::Result;
 
 pub fn run(name: &str, new_name: &str) -> Result<()> {
-    Ok(())
+    let mut store = IdentityStore::lock()?;
+    store.rename(name, new_name)
 }
