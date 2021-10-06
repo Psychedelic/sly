@@ -1,16 +1,19 @@
 use anyhow::{bail, Context};
 use dirs::config_dir;
-use ic_agent::identity::BasicIdentity;
 use ic_agent::Identity;
 use mkdirp::mkdirp;
 use once_cell::sync::Lazy;
-use pem::{encode, Pem};
-use ring::signature::Ed25519KeyPair;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
+use ic_agent::identity::Secp256k1Identity;
+use openssl::{
+    ec::{EcGroup, EcKey},
+    nid::Nid,
+    pkey::Private
+};
 
 static STORE: Lazy<Mutex<IdentityStore>> = Lazy::new(|| {
     let dir = config_dir()
@@ -60,7 +63,7 @@ impl IdentityStore {
                 key,
                 file_path
             );
-            let identity = BasicIdentity::from_pem_file(&file_path)
+            let identity = Secp256k1Identity::from_pem_file(&file_path)
                 .with_context(|| format!("Could not load pem file: {:?}", file_path))?;
             identities.insert(key, Box::new(identity));
         }
@@ -116,13 +119,10 @@ impl IdentityStore {
             bail!("Duplicate identity name {}.", name);
         }
 
-        let rng = ring::rand::SystemRandom::new();
-        let pkcs8_bytes = ring::signature::Ed25519KeyPair::generate_pkcs8(&rng)
-            .expect("Could not generate a key pair.")
-            .as_ref()
-            .to_vec();
+        let group = EcGroup::from_curve_name(Nid::SECP256K1)?;
+        let private_key = EcKey::generate(&group).unwrap();
 
-        self.save_pkcs8_pem(name, pkcs8_bytes)
+        self.save_secp256k1_pem(name, private_key)
     }
 
     /// Import a new identity from a pem file.
@@ -133,27 +133,23 @@ impl IdentityStore {
         }
 
         log::trace!("Reading the pem file {}", pem_path);
-        let pem_bytes = fs::read(pem_path).context("Cannot read the pem file.")?;
+        let pem = fs::read(pem_path).context("Cannot read the pem file.")?;
         log::trace!("Parsing the pem file");
-        let pkcs8_bytes = pem::parse(pem_bytes)
-            .context("Cannot parse the pem file.")?
-            .contents;
+        let private_key = EcKey::private_key_from_pem(&pem)?;
 
-        self.save_pkcs8_pem(name, pkcs8_bytes)
+        self.save_secp256k1_pem(name, private_key)
     }
 
-    fn save_pkcs8_pem(&mut self, name: &str, pkcs8_bytes: Vec<u8>) -> anyhow::Result<()> {
-        let pem = Pem {
-            tag: name.to_string(),
-            contents: pkcs8_bytes,
-        };
-
-        let pem_contents = encode(&pem);
+    fn save_secp256k1_pem(
+        &mut self,
+        name: &str,
+        private_key: EcKey<Private>,
+    ) -> anyhow::Result<()> {
+        let pem_contents = private_key.private_key_to_pem()?;
         let pem_filename = format!("{}.pem", name);
         let pem_path = self.directory.join(pem_filename);
 
-        let key_pair = Ed25519KeyPair::from_pkcs8(&pem.contents)?;
-        let identity = BasicIdentity::from_key_pair(key_pair);
+        let identity = Secp256k1Identity::from_private_key(private_key);
 
         fs::write(pem_path, pem_contents)?;
         self.identities.insert(name.into(), Box::new(identity));
