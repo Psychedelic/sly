@@ -1,3 +1,4 @@
+use crate::lib::pic_key::PicKey;
 use anyhow::{bail, Context};
 use dirs::config_dir;
 use ic_agent::Identity;
@@ -8,12 +9,6 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
-use ic_agent::identity::Secp256k1Identity;
-use openssl::{
-    ec::{EcGroup, EcKey},
-    nid::Nid,
-    pkey::Private
-};
 
 static STORE: Lazy<Mutex<IdentityStore>> = Lazy::new(|| {
     let dir = config_dir()
@@ -57,15 +52,15 @@ impl IdentityStore {
 
         // Read the identities from the directory.
         let mut identities = BTreeMap::<String, Box<dyn Identity>>::new();
-        for (key, file_path) in glob_pem_files(&directory)? {
+        for (name, file_path) in glob_pem_files(&directory)? {
             log::trace!(
                 "Loading pem file for identity '{}' from {:?}",
-                key,
+                name,
                 file_path
             );
-            let identity = Secp256k1Identity::from_pem_file(&file_path)
+            let key = PicKey::from_pem_file(&file_path)
                 .with_context(|| format!("Could not load pem file: {:?}", file_path))?;
-            identities.insert(key, Box::new(identity));
+            identities.insert(name, key.into_identity());
         }
 
         // Read the config to maybe_config.
@@ -119,40 +114,28 @@ impl IdentityStore {
             bail!("Duplicate identity name {}.", name);
         }
 
-        let group = EcGroup::from_curve_name(Nid::SECP256K1)?;
-        let private_key = EcKey::generate(&group).unwrap();
-
-        self.save_secp256k1_pem(name, private_key)
+        let key = PicKey::generate();
+        self.save_pic_key(name, key)
     }
 
     /// Import a new identity from a pem file.
-    pub fn import(&mut self, name: &str, pem_path: &str) -> anyhow::Result<()> {
-        log::trace!("Importing new identity '{}' from pem '{}'", name, pem_path);
+    pub fn import(&mut self, name: &str, file_path: &str) -> anyhow::Result<()> {
+        log::trace!("Importing new identity '{}' from pem '{}'", name, file_path);
         if self.identities.contains_key(name) {
             bail!("Duplicate identity name {}.", name);
         }
 
-        log::trace!("Reading the pem file {}", pem_path);
-        let pem = fs::read(pem_path).context("Cannot read the pem file.")?;
-        log::trace!("Parsing the pem file");
-        let private_key = EcKey::private_key_from_pem(&pem)?;
-
-        self.save_secp256k1_pem(name, private_key)
+        let key = PicKey::from_pem_file(file_path)?;
+        self.save_pic_key(name, key)
     }
 
-    fn save_secp256k1_pem(
-        &mut self,
-        name: &str,
-        private_key: EcKey<Private>,
-    ) -> anyhow::Result<()> {
-        let pem_contents = private_key.private_key_to_pem()?;
+    fn save_pic_key(&mut self, name: &str, key: PicKey) -> anyhow::Result<()> {
         let pem_filename = format!("{}.pem", name);
         let pem_path = self.directory.join(pem_filename);
+        key.store_pem_file(name, pem_path)?;
 
-        let identity = Secp256k1Identity::from_private_key(private_key);
-
-        fs::write(pem_path, pem_contents)?;
-        self.identities.insert(name.into(), Box::new(identity));
+        let identity = key.into_identity();
+        self.identities.insert(name.into(), identity);
 
         Ok(())
     }
