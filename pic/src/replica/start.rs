@@ -16,6 +16,11 @@ pub fn run() -> Result<()> {
             Some(start_shutdown_controller().expect("Cannot start the shutdown actor."));
 
         ReplicaActor::new(ReplicaActorConfig {
+            ic_starter_path,
+            replica_path,
+            state_directory: Default::default(),
+            write_port_to: Default::default(),
+            no_artificial_delay: true,
             shutdown_controller,
         })
         .start()

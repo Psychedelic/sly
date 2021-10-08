@@ -13,25 +13,8 @@ use std::process::Command;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-pub mod signals {
-    use actix::prelude::*;
-
-    pub mod outbound {
-        use super::*;
-
-        #[derive(Message)]
-        #[rtype(result = "()")]
-        pub struct ProcessRestarted {}
-    }
-
-    #[derive(Message)]
-    #[rtype(result = "()")]
-    pub struct ProcessRestartSubscribe(pub Recipient<outbound::ProcessRestarted>);
-
-    #[derive(Message)]
-    #[rtype(result = "()")]
-    pub(super) struct TriggerProcessRestarted {}
-}
+/// The callback which gets executed after each process restart.
+pub type Callback = Box<dyn Fn(&Receiver<()>) + Send>;
 
 pub struct ChildProcessActorConfig {
     /// Name for this child process actor, used for logging.
@@ -40,6 +23,8 @@ pub struct ChildProcessActorConfig {
     pub command: Command,
     /// The shutdown controller that we must use.
     pub shutdown_controller: Option<Addr<ShutdownController>>,
+    /// The callback that gets called after each execution.
+    pub callback: Option<Callback>,
 }
 
 /// An actix actor that can be used to spawn a [Command] in a different thread keep it running
@@ -56,8 +41,8 @@ pub struct ChildProcessActor {
     terminate_sender: Option<Sender<()>>,
     /// The handle for the runner thread.
     thread_handle: Option<JoinHandle<()>>,
-    /// List of subscribers that are interested in receiving the ProcessRestarted signal.
-    subscribers: Vec<Recipient<signals::outbound::ProcessRestarted>>,
+    /// The callback to be called after each execution.
+    callback: Option<Callback>,
 }
 
 impl ChildProcessActor {
@@ -69,20 +54,22 @@ impl ChildProcessActor {
             command: Some(config.command),
             terminate_sender: None,
             thread_handle: None,
-            subscribers: Vec::new(),
+            callback: config.callback,
         }
     }
 
     /// Start the runner thread.
-    fn run_command(&mut self, addr: Addr<Self>) -> Result<()> {
+    fn run_command(&mut self) -> Result<()> {
         let command = self
             .command
             .take()
             .context("Child process actor already started.")?;
 
+        let callback = self.callback.take();
+
         let (sender, kill_receiver) = unbounded();
 
-        let handle = start_runner_thread(addr, command, self.name.clone(), kill_receiver)?;
+        let handle = start_runner_thread(command, self.name.clone(), kill_receiver, callback)?;
 
         self.terminate_sender = Some(sender);
         self.thread_handle = Some(handle);
@@ -95,7 +82,7 @@ impl Actor for ChildProcessActor {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        self.run_command(ctx.address())
+        self.run_command()
             .expect("Could not start the child process.");
 
         if let Some(shutdown_controller) = &self.shutdown_controller {
@@ -107,6 +94,7 @@ impl Actor for ChildProcessActor {
         log::info!("Stopping child process {}", self.name);
 
         if let Some(sender) = self.terminate_sender.take() {
+            let _ = sender.send(());
             let _ = sender.send(());
         }
 
@@ -134,38 +122,12 @@ impl Handler<Shutdown> for ChildProcessActor {
     }
 }
 
-impl Handler<signals::ProcessRestartSubscribe> for ChildProcessActor {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        msg: signals::ProcessRestartSubscribe,
-        _: &mut Self::Context,
-    ) -> Self::Result {
-        self.subscribers.push(msg.0)
-    }
-}
-
-impl Handler<signals::TriggerProcessRestarted> for ChildProcessActor {
-    type Result = ();
-
-    fn handle(
-        &mut self,
-        _msg: signals::TriggerProcessRestarted,
-        _: &mut Self::Context,
-    ) -> Self::Result {
-        for sub in &self.subscribers {
-            let _ = sub.do_send(signals::outbound::ProcessRestarted {});
-        }
-    }
-}
-
 /// Start the thread that executes the given command, and sends R
 fn start_runner_thread(
-    addr: Addr<ChildProcessActor>,
     mut command: Command,
     name: String,
     kill_receiver: Receiver<()>,
+    callback: Option<Callback>,
 ) -> Result<JoinHandle<()>> {
     let thread_name = format!("child-process:{}", name);
 
@@ -185,7 +147,9 @@ fn start_runner_thread(
                 .spawn()
                 .expect(&format!("Could not start the process for '{}'.", name));
 
-            addr.do_send(signals::TriggerProcessRestarted {});
+            if let Some(cb) = &callback {
+                cb(&kill_receiver);
+            }
 
             // This waits for the child to stop, or the receiver to receive a message.
             // We don't restart the replica if done = true.
