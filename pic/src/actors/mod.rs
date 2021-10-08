@@ -1,7 +1,7 @@
 use actix::{Actor, Addr};
 use anyhow::Result;
 
-pub mod child;
+pub mod child_process;
 pub mod icx_proxy;
 pub mod replica;
 pub mod shutdown;
