@@ -62,6 +62,7 @@ impl ReplicaActor {
 
         let handle_restart = move |kill_receiver: &Receiver<()>| {
             log::trace!("Replica command executed. Now checking the port file...");
+            log::trace!("Reading port file: {:?}", port_file);
 
             let mut waiter = Delay::builder()
                 .throttle(Duration::from_millis(100))
@@ -71,10 +72,9 @@ impl ReplicaActor {
             waiter.start();
 
             loop {
-                log::trace!("Reading port file: {:?}", port_file);
-
                 if let Ok(content) = std::fs::read_to_string(&port_file) {
                     if let Ok(port) = content.parse::<u16>() {
+                        log::info!("Replica is listening on port {}", port);
                         addr.do_send(signals::ProcessRestarted(port));
                         return;
                     }
@@ -143,10 +143,39 @@ impl Handler<signals::ProcessRestarted> for ReplicaActor {
 }
 
 impl From<&ReplicaActorConfig> for Command {
-    fn from(_: &ReplicaActorConfig) -> Self {
-        let mut cmd = Command::new("echo");
-        cmd.arg("Hello World");
-        cmd.stdout(Stdio::inherit());
+    fn from(config: &ReplicaActorConfig) -> Self {
+        let mut cmd = Command::new(&config.ic_starter_path);
+
+        cmd.args(&[
+            "--replica-path",
+            config.replica_path.to_str().unwrap_or_default(),
+            "--state-dir",
+            config.state_directory.to_str().unwrap_or_default(),
+            "--create-funds-whitelist",
+            "*",
+            "--consensus-pool-backend",
+            "rocksdb",
+        ]);
+
+        cmd.args(&[
+            "--http-port-file",
+            &config.write_port_to.to_str().unwrap_or_default(),
+        ]);
+
+        if config.no_artificial_delay {
+            cmd.args(&[
+                "--initial-notary-delay-millis",
+                // The intial notary delay is set to 2500ms in the replica's
+                // default subnet configuration.
+                // For local consensus, we can set it to a smaller value in order
+                // to speed up update calls.
+                "500",
+            ]);
+        }
+
+        cmd.stdout(std::process::Stdio::inherit());
+        cmd.stderr(std::process::Stdio::inherit());
+
         cmd
     }
 }
