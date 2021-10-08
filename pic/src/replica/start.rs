@@ -13,7 +13,8 @@ pub fn run() -> Result<()> {
 
     system.block_on(async {
         let shutdown_controller =
-            start_shutdown_controller().expect("Cannot start the shutdown actor.");
+            Some(start_shutdown_controller().expect("Cannot start the shutdown actor."));
+
         ReplicaActor::new(ReplicaActorConfig {
             shutdown_controller,
         })

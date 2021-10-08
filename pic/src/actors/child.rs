@@ -61,6 +61,7 @@ pub struct ChildProcessActor {
 }
 
 impl ChildProcessActor {
+    /// Create a new [`ChildProcessActor`] using the provided configurations.
     pub fn new(config: ChildProcessActorConfig) -> Self {
         Self {
             name: config.name,
@@ -72,7 +73,8 @@ impl ChildProcessActor {
         }
     }
 
-    pub fn run_command(&mut self, addr: Addr<Self>) -> Result<()> {
+    /// Start the runner thread.
+    fn run_command(&mut self, addr: Addr<Self>) -> Result<()> {
         let command = self
             .command
             .take()
@@ -153,7 +155,7 @@ impl Handler<signals::TriggerProcessRestarted> for ChildProcessActor {
         _: &mut Self::Context,
     ) -> Self::Result {
         for sub in &self.subscribers {
-            let _ = sub.send(signals::outbound::ProcessRestarted {});
+            let _ = sub.do_send(signals::outbound::ProcessRestarted {});
         }
     }
 }
