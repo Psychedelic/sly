@@ -30,7 +30,7 @@ fn get_cache_root() -> Result<PathBuf> {
     let home = std::env::var("HOME").context("Can not find the home directory.")?;
     let root = config_root.unwrap_or(home);
     let p = PathBuf::from(root).join(".cache").join("dfinity");
-    if p.is_dir() {
+    if !p.is_dir() {
         bail!("DFX is not installed.");
     }
     Ok(p)

@@ -1,5 +1,5 @@
 use crate::lib::dfx::get_dfx_bin_root;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 
 /// Return the path for the given toolchain binary.
@@ -10,5 +10,12 @@ pub fn get_binary_command_path(binary_name: &str) -> Result<PathBuf> {
             in our binaries. Please install either DFX 0.8.0 or 0.8.1 and run a replica \
             with it only once to force it to produce the toolchains for you.",
     ))?;
-    Ok(root_bin_path.join(binary_name))
+    let path = root_bin_path.join(binary_name);
+    if !path.is_file() {
+        bail!(
+            "Cannot obtain the path to the toolchain's {} command",
+            binary_name
+        );
+    }
+    Ok(path)
 }

@@ -248,8 +248,9 @@ impl IdentitySubCommands {
 
 impl ReplicaSubCommands {
     pub fn run(&self, app: &App) -> Result<()> {
+        use crate::replica;
         match self {
-            ReplicaSubCommands::Start { .. } => todo!(),
+            ReplicaSubCommands::Start { .. } => replica::start::run(),
             ReplicaSubCommands::Stop { .. } => todo!(),
             ReplicaSubCommands::Info { .. } => todo!(),
             ReplicaSubCommands::CreateCanister { .. } => todo!(),

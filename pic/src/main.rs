@@ -1,3 +1,4 @@
+mod actors;
 mod candid;
 mod cli;
 mod identity;
