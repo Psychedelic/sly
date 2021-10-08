@@ -36,10 +36,12 @@ pub struct ReplicaActorConfig {
     pub replica_path: PathBuf,
     pub state_directory: PathBuf,
     pub write_port_to: PathBuf,
+    pub write_pid_to: Option<PathBuf>,
     pub no_artificial_delay: bool,
     pub shutdown_controller: Option<Addr<ShutdownController>>,
 }
 
+/// Runs a IC replica as a child process and emits the port.
 pub struct ReplicaActor {
     port: Option<u16>,
     config: ReplicaActorConfig,
@@ -100,6 +102,7 @@ impl ReplicaActor {
             command,
             shutdown_controller: self.config.shutdown_controller.take(),
             callback: Some(Box::new(handle_restart)),
+            pid_file: self.config.write_pid_to.clone(),
         })
         .start();
 

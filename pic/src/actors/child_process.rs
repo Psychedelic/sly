@@ -1,6 +1,6 @@
 use crate::actors::shutdown::{wait_for_child_or_receiver, ChildOrReceiver};
 use crate::actors::shutdown_controller::signals::outbound::Shutdown;
-use crate::actors::shutdown_controller::signals::ShutdownSubscribe;
+use crate::actors::shutdown_controller::signals::{ShutdownSubscribe, ShutdownTrigger};
 use crate::actors::shutdown_controller::ShutdownController;
 use actix::{
     Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, Context, Handler, Recipient,
@@ -9,6 +9,8 @@ use actix::{
 use anyhow::{Context as AnyhowContext, Result};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use garcon::{Delay, Waiter};
+use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -25,6 +27,9 @@ pub struct ChildProcessActorConfig {
     pub shutdown_controller: Option<Addr<ShutdownController>>,
     /// The callback that gets called after each execution.
     pub callback: Option<Callback>,
+    /// The file to write the PID to. If this file already exists on the system, and a shutdown
+    /// controller is provided, we send the shutdown signal.
+    pub pid_file: Option<PathBuf>,
 }
 
 /// An actix actor that can be used to spawn a [Command] in a different thread keep it running
@@ -35,6 +40,8 @@ pub struct ChildProcessActor {
     name: String,
     /// The shutdown controller that we must use.
     shutdown_controller: Option<Addr<ShutdownController>>,
+    /// The file to write the PID to.
+    pid_file: Option<PathBuf>,
     /// The command that should be executed by this runner.
     command: Option<Command>,
     /// A sender that sends is used to send the termination signal to the runner thread.
@@ -51,6 +58,7 @@ impl ChildProcessActor {
         Self {
             name: config.name,
             shutdown_controller: config.shutdown_controller,
+            pid_file: config.pid_file,
             command: Some(config.command),
             terminate_sender: None,
             thread_handle: None,
@@ -66,10 +74,20 @@ impl ChildProcessActor {
             .context("Child process actor already started.")?;
 
         let callback = self.callback.take();
+        let name = self.name.clone();
+        let pid_file = self.pid_file.clone();
+        let shutdown_controller = self.shutdown_controller.clone();
 
         let (sender, kill_receiver) = unbounded();
 
-        let handle = start_runner_thread(command, self.name.clone(), kill_receiver, callback)?;
+        let handle = start_runner_thread(
+            command,
+            name,
+            pid_file,
+            shutdown_controller,
+            kill_receiver,
+            callback,
+        )?;
 
         self.terminate_sender = Some(sender);
         self.thread_handle = Some(handle);
@@ -126,6 +144,8 @@ impl Handler<Shutdown> for ChildProcessActor {
 fn start_runner_thread(
     mut command: Command,
     name: String,
+    pid_file: Option<PathBuf>,
+    shutdown_controller: Option<Addr<ShutdownController>>,
     kill_receiver: Receiver<()>,
     callback: Option<Callback>,
 ) -> Result<JoinHandle<()>> {
@@ -143,9 +163,38 @@ fn start_runner_thread(
         while !done {
             let last_start = std::time::Instant::now();
             log::info!("Starting the process for '{}'", name);
+
+            if let Some(path) = &pid_file {
+                if path.is_file() {
+                    log::error!(
+                        "Cannot start the '{}' process since the lock file already exists.",
+                        name
+                    );
+
+                    if let Some(controller) = shutdown_controller {
+                        log::trace!("Sending the shutdown signal due the error.");
+                        controller.do_send(ShutdownTrigger());
+                    }
+
+                    return;
+                }
+
+                fs::write(path, "").expect(&format!(
+                    "Could not obtain the lock for process '{}'.",
+                    name
+                ));
+            }
+
             let mut child = command
                 .spawn()
                 .expect(&format!("Could not start the process for '{}'.", name));
+
+            if let Some(path) = &pid_file {
+                fs::write(path, format!("{}", child.id())).expect(&format!(
+                    "Could not write the PID lock for process '{}'.",
+                    name
+                ));
+            }
 
             if let Some(cb) = &callback {
                 cb(&kill_receiver);
@@ -174,6 +223,13 @@ fn start_runner_thread(
                     }
                 }
             }
+        }
+
+        if let Some(path) = &pid_file {
+            fs::remove_file(path).expect(&format!(
+                "Cannot remove the PID lock for process '{}'",
+                name
+            ))
         }
     };
 
