@@ -6,6 +6,7 @@ use actix_rt::spawn;
 use anyhow::anyhow;
 use crossbeam::channel::Receiver;
 use garcon::{Delay, Waiter};
+use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -61,6 +62,9 @@ impl ReplicaActor {
         let port_file = self.config.write_port_to.clone();
 
         let handle_restart = move |kill_receiver: &Receiver<()>| {
+            // To make sure that the port we read is for this process.
+            fs::write(&port_file, "").expect("Cannot write to the port file");
+
             log::trace!("Replica command executed. Now checking the port file...");
             log::trace!("Reading port file: {:?}", port_file);
 

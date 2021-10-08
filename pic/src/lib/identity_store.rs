@@ -1,4 +1,4 @@
-use crate::lib::pic_key::PicKey;
+use crate::lib::private_key::PrivateKey;
 use anyhow::{bail, Context};
 use dirs::config_dir;
 use ic_agent::Identity;
@@ -58,7 +58,7 @@ impl IdentityStore {
                 name,
                 file_path
             );
-            let key = PicKey::from_pem_file(&file_path)
+            let key = PrivateKey::from_pem_file(&file_path)
                 .with_context(|| format!("Could not load pem file: {:?}", file_path))?;
             identities.insert(name, key.into_identity());
         }
@@ -114,7 +114,7 @@ impl IdentityStore {
             bail!("Duplicate identity name {}.", name);
         }
 
-        let key = PicKey::generate();
+        let key = PrivateKey::generate();
         self.save_pic_key(name, key)
     }
 
@@ -125,11 +125,11 @@ impl IdentityStore {
             bail!("Duplicate identity name {}.", name);
         }
 
-        let key = PicKey::from_pem_file(file_path)?;
+        let key = PrivateKey::from_pem_file(file_path)?;
         self.save_pic_key(name, key)
     }
 
-    fn save_pic_key(&mut self, name: &str, key: PicKey) -> anyhow::Result<()> {
+    fn save_pic_key(&mut self, name: &str, key: PrivateKey) -> anyhow::Result<()> {
         let pem_filename = format!("{}.pem", name);
         let pem_path = self.directory.join(pem_filename);
         key.store_pem_file(name, pem_path)?;

@@ -9,12 +9,12 @@ use std::fs;
 use std::io::Read;
 
 /// A key that can be converted to a Identity.
-pub enum PicKey {
+pub enum PrivateKey {
     Ed25519Pkcs8(Vec<u8>),
     Secp256k1(EcKey<Private>),
 }
 
-impl PicKey {
+impl PrivateKey {
     /// Try to load a pem file.
     pub fn from_pem_file<P: AsRef<std::path::Path>>(file_path: P) -> anyhow::Result<Self> {
         let reader = fs::File::open(file_path)?;
@@ -48,7 +48,7 @@ impl PicKey {
         path: P,
     ) -> anyhow::Result<()> {
         match &self {
-            PicKey::Ed25519Pkcs8(pkcs8) => {
+            PrivateKey::Ed25519Pkcs8(pkcs8) => {
                 log::trace!("Storing Ed25519 pem file.");
                 let pem = Pem {
                     tag: name.into(),
@@ -59,7 +59,7 @@ impl PicKey {
                 fs::write(path, contents)?;
                 Ok(())
             }
-            PicKey::Secp256k1(key) => {
+            PrivateKey::Secp256k1(key) => {
                 log::trace!("Storing Secp256k1 pem file.");
                 let contents = key.private_key_to_pem()?;
                 fs::write(path, contents)?;
@@ -71,11 +71,11 @@ impl PicKey {
     /// Convert to an identity.
     pub fn into_identity(self) -> Box<dyn Identity> {
         match self {
-            PicKey::Ed25519Pkcs8(pkcs8) => {
+            PrivateKey::Ed25519Pkcs8(pkcs8) => {
                 let key_pair = Ed25519KeyPair::from_pkcs8(pkcs8.as_slice()).unwrap();
                 Box::new(BasicIdentity::from_key_pair(key_pair))
             }
-            PicKey::Secp256k1(private_key) => {
+            PrivateKey::Secp256k1(private_key) => {
                 Box::new(Secp256k1Identity::from_private_key(private_key))
             }
         }
