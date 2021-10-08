@@ -159,31 +159,31 @@ fn start_runner_thread(
             .build();
         waiter.start();
 
+        if let Some(path) = &pid_file {
+            if path.is_file() {
+                log::error!(
+                    "Cannot start the '{}' process since the lock file already exists.",
+                    name
+                );
+
+                if let Some(controller) = shutdown_controller {
+                    log::trace!("Sending the shutdown signal due the error.");
+                    controller.do_send(ShutdownTrigger());
+                }
+
+                return;
+            }
+
+            fs::write(path, "").expect(&format!(
+                "Could not obtain the lock for process '{}'.",
+                name
+            ));
+        }
+
         let mut done = false;
         while !done {
             let last_start = std::time::Instant::now();
             log::info!("Starting the process for '{}'", name);
-
-            if let Some(path) = &pid_file {
-                if path.is_file() {
-                    log::error!(
-                        "Cannot start the '{}' process since the lock file already exists.",
-                        name
-                    );
-
-                    if let Some(controller) = shutdown_controller {
-                        log::trace!("Sending the shutdown signal due the error.");
-                        controller.do_send(ShutdownTrigger());
-                    }
-
-                    return;
-                }
-
-                fs::write(path, "").expect(&format!(
-                    "Could not obtain the lock for process '{}'.",
-                    name
-                ));
-            }
 
             let mut child = command
                 .spawn()
