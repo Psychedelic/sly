@@ -1,4 +1,5 @@
 pub mod candid;
+pub mod command;
 pub mod dfx;
 pub mod env;
 pub mod identity_store;

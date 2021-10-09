@@ -1,3 +1,5 @@
+use candid::Principal;
+
 /// Flatten a result, because .flatten() is unstable.
 #[inline]
 pub fn result_flatten<T, E>(result: Result<Result<T, E>, E>) -> Result<T, E> {
@@ -6,4 +8,12 @@ pub fn result_flatten<T, E>(result: Result<Result<T, E>, E>) -> Result<T, E> {
         Ok(Err(e)) => Err(e),
         Err(e) => Err(e),
     }
+}
+
+/// Checks if the provided string is a valid principal id.
+#[inline]
+fn is_principal(text: &str) -> Result<(), String> {
+    Principal::from_text(text)
+        .map(|_| ())
+        .map_err(|_| format!("Not a valid principal id."))
 }

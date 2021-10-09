@@ -221,11 +221,6 @@ impl IdentityStore {
         &self.current
     }
 
-    /// Return the default identity that should be used.
-    pub fn get_current_identity(&self) -> &Box<dyn Identity> {
-        self.identities.get(&self.current).unwrap()
-    }
-
     /// Return an iterator over the name of all the loaded identities.
     pub fn identity_names(&self) -> impl Iterator<Item = &String> {
         self.identities.keys()

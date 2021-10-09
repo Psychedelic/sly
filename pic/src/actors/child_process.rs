@@ -3,8 +3,8 @@ use crate::actors::shutdown_controller::signals::outbound::Shutdown;
 use crate::actors::shutdown_controller::signals::{ShutdownSubscribe, ShutdownTrigger};
 use crate::actors::shutdown_controller::ShutdownController;
 use actix::{
-    Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, Context, Handler, Recipient,
-    ResponseActFuture, Running, WrapFuture,
+    Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, Context, Handler, ResponseActFuture,
+    Running, WrapFuture,
 };
 use anyhow::{Context as AnyhowContext, Result};
 use crossbeam::channel::{unbounded, Receiver, Sender};

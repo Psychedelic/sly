@@ -1,10 +1,8 @@
-use crate::lib::env;
-use crate::lib::toolchain::get_binary_command_path;
+use crate::lib::toolchain;
 use actix::{Actor, Addr};
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use replica::{ReplicaActor, ReplicaActorConfig};
 use shutdown_controller::ShutdownController;
-use std::fs;
 
 pub mod child_process;
 pub mod icx_proxy;
@@ -22,11 +20,11 @@ pub fn start_replica(
     shutdown_controller: Option<Addr<ShutdownController>>,
     no_artificial_delay: bool,
 ) -> Result<Addr<ReplicaActor>> {
-    let replica_path = get_binary_command_path("replica")?;
-    let ic_starter_path = get_binary_command_path("ic-starter")?;
-    let state_directory = env::get_replica_state_directory()?;
-    let write_port_to = env::get_replica_port_file()?;
-    let write_pid_to = Some(env::get_replica_pid_file()?);
+    let replica_path = toolchain::get_binary_command_path("replica")?;
+    let ic_starter_path = toolchain::get_binary_command_path("ic-starter")?;
+    let state_directory = toolchain::get_replica_state_directory()?;
+    let write_port_to = toolchain::get_replica_port_file()?;
+    let write_pid_to = Some(toolchain::get_replica_pid_file()?);
 
     let config = ReplicaActorConfig {
         ic_starter_path,

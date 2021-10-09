@@ -1,42 +1,51 @@
-use anyhow::{bail, Context, Result};
-use std::fs;
-use std::path::PathBuf;
+use crate::lib::identity_store::IdentityStore;
+use anyhow::{anyhow, Result};
 
-pub fn get_replica_port_file() -> Result<PathBuf> {
-    Ok(get_replica_state_root()?.join("replica-port"))
+pub static MAIN_IC_NETWORK: &str = "https://ic0.app/";
+
+pub struct Env {
+    network: String,
+    identity: String,
 }
 
-pub fn get_replica_pid_file() -> Result<PathBuf> {
-    Ok(get_replica_state_root()?.join("replica-pid"))
+impl Env {
+    /// Create a new env.
+    pub fn new(network: Option<&str>, identity: Option<&str>) -> Result<Self> {
+        Ok(Self {
+            network: parse_network(network)?,
+            identity: parse_identity(identity)?,
+        })
+    }
+
+    /// Return the network that should be used.
+    pub fn network(&self) -> &str {
+        self.network.as_str()
+    }
+
+    /// Return the name of the identity that should be used.
+    pub fn identity_name(&self) -> &str {
+        self.identity.as_str()
+    }
 }
 
-pub fn get_replica_state_directory() -> Result<PathBuf> {
-    let root = get_replica_state_root()?;
-    let state_directory = root.join("state");
-
-    if !state_directory.exists() {
-        fs::create_dir_all(&state_directory)
-            .context("Can not create the replica state directory")?;
+fn parse_network(network: Option<&str>) -> Result<String> {
+    match network {
+        Some("ic") => Ok(MAIN_IC_NETWORK.to_owned()),
+        None | Some("local") => get_local_network(),
+        Some(network) => Ok(network.to_owned()),
     }
-
-    if !state_directory.is_dir() {
-        bail!("Expected '{:?}' to be a directory.", state_directory)
-    }
-
-    Ok(state_directory)
 }
 
-pub fn get_replica_state_root() -> Result<PathBuf> {
-    let data_dir = dirs::data_dir().context("Can not get the data directory.")?;
-    let root = data_dir.join("psychedelic").join("replica");
+fn parse_identity(identity: Option<&str>) -> Result<String> {
+    let store = IdentityStore::lock()?;
 
-    if !root.exists() {
-        fs::create_dir_all(&root).context("Can not create the replica data directory")?;
+    match identity {
+        Some(name) if store.get_identity(name).is_some() => Ok(name.to_owned()),
+        Some(name) => Err(anyhow!("Identity '{}' does not exists.", name)),
+        None => Ok(store.get_current_identity_name().to_owned()),
     }
+}
 
-    if !root.is_dir() {
-        bail!("Expected '{:?}' to be a directory.", root);
-    }
-
-    Ok(root)
+fn get_local_network() -> Result<String> {
+    todo!()
 }

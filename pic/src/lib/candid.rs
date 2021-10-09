@@ -110,7 +110,11 @@ impl CandidParser {
 
         // Now check for circular references.
         for (name, (file_id, span)) in &self.binding_positions {
-            self.resolve_var(&Type::Var(name.clone()))?;
+            self.resolve_var(&Type::Var(name.clone())).map_err(|e| {
+                let label = Label::secondary(*file_id, span.clone())
+                    .with_message("Error originated from this binding.");
+                e.with_labels(vec![label])
+            })?;
         }
 
         Ok(())
