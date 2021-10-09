@@ -14,7 +14,7 @@ pub enum ReplicaSubCommands {
 }
 
 impl Command for ReplicaSubCommands {
-    fn exec(self, env: &Env) -> Result<()> {
+    fn exec(self, env: &mut Env) -> Result<()> {
         match self {
             ReplicaSubCommands::Start(opts) => opts.exec(env),
         }

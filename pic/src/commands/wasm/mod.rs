@@ -12,7 +12,7 @@ pub enum WasmSubCommands {
 }
 
 impl Command for WasmSubCommands {
-    fn exec(self, env: &Env) -> Result<()> {
+    fn exec(self, env: &mut Env) -> Result<()> {
         match self {
             WasmSubCommands::Optimize(opts) => opts.exec(env),
         }

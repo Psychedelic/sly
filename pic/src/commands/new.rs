@@ -11,7 +11,7 @@ pub struct NewOpts {
 }
 
 impl Command for NewOpts {
-    fn exec(self, _: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         todo!()
     }
 }

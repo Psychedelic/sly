@@ -1,6 +1,5 @@
 use crate::lib::command::Command;
 use crate::lib::env::Env;
-use crate::lib::identity_store::IdentityStore;
 use anyhow::Result;
 use clap::Clap;
 
@@ -11,8 +10,7 @@ pub struct IdentityUseOpts {
 }
 
 impl Command for IdentityUseOpts {
-    fn exec(self, _: &Env) -> Result<()> {
-        let mut store = IdentityStore::lock()?;
-        store.set_current(&self.name)
+    fn exec(self, env: &mut Env) -> Result<()> {
+        env.get_identity_store_mut().set_current(&self.name)
     }
 }

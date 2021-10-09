@@ -15,7 +15,7 @@ pub struct CandidCheckOpts {
 }
 
 impl Command for CandidCheckOpts {
-    fn exec(self, _: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         let mut parser = CandidParser::default();
 
         let filename = self.filename.as_str();

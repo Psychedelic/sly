@@ -1,6 +1,5 @@
 use crate::lib::command::Command;
 use crate::lib::env::Env;
-use crate::lib::identity_store::IdentityStore;
 use anyhow::Result;
 use clap::Clap;
 
@@ -13,8 +12,8 @@ pub struct IdentityRenameOpts {
 }
 
 impl Command for IdentityRenameOpts {
-    fn exec(self, _: &Env) -> Result<()> {
-        let mut store = IdentityStore::lock()?;
-        store.rename(&self.name, &self.new_name)
+    fn exec(self, env: &mut Env) -> Result<()> {
+        env.get_identity_store_mut()
+            .rename(&self.name, &self.new_name)
     }
 }

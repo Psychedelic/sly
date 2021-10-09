@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 
     let network = Some(opts.network.as_str());
     let identity = opts.identity.as_ref().map(|x| x.as_str());
-    let env = Env::new(network, identity)?;
+    let mut env = Env::new(network, identity)?;
 
-    opts.sub.exec(&env)
+    opts.sub.exec(&mut env)
 }

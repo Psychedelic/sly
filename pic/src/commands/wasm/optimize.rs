@@ -13,7 +13,7 @@ pub struct WasmOptimizeOpts {
 }
 
 impl Command for WasmOptimizeOpts {
-    fn exec(self, _: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         todo!()
     }
 }

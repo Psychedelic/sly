@@ -28,7 +28,7 @@ pub struct CandidGenOpts {
 }
 
 impl Command for CandidGenOpts {
-    fn exec(self, _: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         let dir = PathBuf::from(&self.out_dir);
 
         mkdirp::mkdirp(&dir)?;

@@ -14,7 +14,7 @@ pub struct CandidFormatOpts {
 }
 
 impl Command for CandidFormatOpts {
-    fn exec(self, _: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         let mut parser = CandidParser::default();
 
         for file in self.files {

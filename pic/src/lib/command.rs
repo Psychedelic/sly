@@ -3,5 +3,5 @@ use anyhow::Result;
 
 pub trait Command {
     /// Execute the command.
-    fn exec(self, env: &Env) -> Result<()>;
+    fn exec(self, env: &mut Env) -> Result<()>;
 }

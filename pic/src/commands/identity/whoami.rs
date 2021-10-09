@@ -7,8 +7,8 @@ use clap::Clap;
 pub struct IdentityWhoamiOpts {}
 
 impl Command for IdentityWhoamiOpts {
-    fn exec(self, env: &Env) -> Result<()> {
-        println!("{}", env.identity_name());
+    fn exec(self, env: &mut Env) -> Result<()> {
+        println!("{}", env.current_identity_name());
         Ok(())
     }
 }

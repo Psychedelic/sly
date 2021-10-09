@@ -13,7 +13,7 @@ pub struct ReplicaStartOpts {
 }
 
 impl Command for ReplicaStartOpts {
-    fn exec(self, _: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         let system = System::new();
 
         system.block_on(async {

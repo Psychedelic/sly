@@ -33,7 +33,7 @@ pub enum IdentitySubCommands {
 }
 
 impl Command for IdentitySubCommands {
-    fn exec(self, env: &Env) -> Result<()> {
+    fn exec(self, env: &mut Env) -> Result<()> {
         match self {
             IdentitySubCommands::List(opts) => opts.exec(env),
             IdentitySubCommands::Create(opts) => opts.exec(env),

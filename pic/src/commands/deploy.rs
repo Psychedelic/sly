@@ -13,7 +13,7 @@ pub struct DeployOpts {
 }
 
 impl Command for DeployOpts {
-    fn exec(self, _env: &Env) -> Result<()> {
+    fn exec(self, _: &mut Env) -> Result<()> {
         todo!()
     }
 }

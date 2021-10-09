@@ -48,7 +48,7 @@ pub enum AppSubCommands {
 }
 
 impl Command for AppSubCommands {
-    fn exec(self, env: &Env) -> Result<()> {
+    fn exec(self, env: &mut Env) -> Result<()> {
         match self {
             AppSubCommands::Candid(sub) => sub.exec(env),
             AppSubCommands::Identity(sub) => sub.exec(env),

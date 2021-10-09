@@ -18,7 +18,7 @@ pub enum CandidSubCommands {
 }
 
 impl Command for CandidSubCommands {
-    fn exec(self, env: &Env) -> Result<()> {
+    fn exec(self, env: &mut Env) -> Result<()> {
         match self {
             CandidSubCommands::Check(opts) => opts.exec(env),
             CandidSubCommands::Format(opts) => opts.exec(env),

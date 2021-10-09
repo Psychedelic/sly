@@ -1,23 +1,11 @@
 use crate::lib::private_key::PrivateKey;
 use anyhow::{bail, Context};
-use dirs::config_dir;
 use ic_agent::Identity;
 use mkdirp::mkdirp;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
-
-static STORE: Lazy<Mutex<IdentityStore>> = Lazy::new(|| {
-    let dir = config_dir()
-        .expect("Cannot find the config dir.")
-        .join("pic")
-        .join("identities");
-    let identity = IdentityStore::load(dir).expect("Failed to init the identity store.");
-    Mutex::new(identity)
-});
 
 /// A data store that keeps the identities loaded by a user.
 pub struct IdentityStore {
@@ -33,14 +21,6 @@ pub struct Config {
 }
 
 impl IdentityStore {
-    /// Acquire a mutex lock on the IdentityStore.
-    pub fn lock() -> anyhow::Result<MutexGuard<'static, IdentityStore>> {
-        match STORE.lock() {
-            Ok(guard) => Ok(guard),
-            Err(e) => bail!("Can not acquire the lock on the identity store {}", e),
-        }
-    }
-
     /// Load an identity store from the given path or init one if it doesn't already exists.
     pub fn load(directory: PathBuf) -> anyhow::Result<Self> {
         log::trace!(

@@ -1,6 +1,5 @@
 use crate::lib::command::Command;
 use crate::lib::env::Env;
-use crate::lib::identity_store::IdentityStore;
 use anyhow::Result;
 use clap::Clap;
 
@@ -8,11 +7,12 @@ use clap::Clap;
 pub struct IdentityListOpts {}
 
 impl Command for IdentityListOpts {
-    fn exec(self, _: &Env) -> Result<()> {
-        let store = IdentityStore::lock()?;
+    fn exec(self, env: &mut Env) -> Result<()> {
+        let store = env.get_identity_store_mut();
 
         for name in store.identity_names() {
-            let principal = store.get_identity(name.as_str()).unwrap().sender().unwrap();
+            let identity = store.get_identity(name.as_str()).unwrap();
+            let principal = identity.sender().unwrap();
             println!("{}  {}", principal, name);
         }
 
