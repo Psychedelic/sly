@@ -9,6 +9,7 @@ use std::fs;
 use std::io::Read;
 
 /// A key that can be converted to a Identity.
+#[derive(Clone)]
 pub enum PrivateKey {
     Ed25519Pkcs8(Vec<u8>),
     Secp256k1(EcKey<Private>),
