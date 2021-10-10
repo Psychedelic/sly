@@ -7,9 +7,9 @@ mod candid;
 mod deploy;
 mod identity;
 mod new;
+mod principal;
 mod replica;
 mod wasm;
-mod principal;
 
 /// Psychedelic's CLI for the Internet Computer.
 #[derive(Clap)]
@@ -47,7 +47,7 @@ pub enum AppSubCommands {
     /// Deploy the canisters of the current workspace.
     Deploy(deploy::DeployOpts),
     /// Search for a given principal id.
-    PrincipalGen(principal::PrincipalOpts)
+    PrincipalGen(principal::PrincipalOpts),
 }
 
 impl Command for AppSubCommands {
@@ -59,7 +59,7 @@ impl Command for AppSubCommands {
             AppSubCommands::Wasm(sub) => sub.exec(env),
             AppSubCommands::New(opts) => opts.exec(env),
             AppSubCommands::Deploy(opts) => opts.exec(env),
-            AppSubCommands::PrincipalGen(opts) => opts.exec(env)
+            AppSubCommands::PrincipalGen(opts) => opts.exec(env),
         }
     }
 }

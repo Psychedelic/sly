@@ -1,9 +1,9 @@
-use clap::Clap;
 use crate::lib::command::Command;
 use crate::lib::env::Env;
-use std::path::PathBuf;
-use anyhow::Context;
 use crate::lib::private_key::PrivateKey;
+use anyhow::Context;
+use clap::Clap;
+use std::path::PathBuf;
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -13,7 +13,7 @@ pub struct PrincipalOpts {
     #[clap(long, short)]
     out_dir: String,
     #[clap(long)]
-    num_threads: Option<usize>
+    num_threads: Option<usize>,
 }
 
 impl Command for PrincipalOpts {
@@ -23,11 +23,15 @@ impl Command for PrincipalOpts {
 
         let num_threads = self.num_threads.unwrap_or(num_cpus::get());
 
-        println!("Searching for patterns {:?} using {} thread(s)", self.patterns, num_threads);
+        println!(
+            "Searching for patterns {:?} using {} thread(s)",
+            self.patterns, num_threads
+        );
 
-        let handles = (0..num_threads).into_iter().map(|_| {
-            run_thread(dir.clone(), self.patterns.clone())
-        }).collect::<Vec<JoinHandle<()>>>();
+        let handles = (0..num_threads)
+            .into_iter()
+            .map(|_| run_thread(dir.clone(), self.patterns.clone()))
+            .collect::<Vec<JoinHandle<()>>>();
 
         for handle in handles {
             handle.join();
@@ -40,16 +44,14 @@ impl Command for PrincipalOpts {
 fn run_thread(dir: PathBuf, patterns: Vec<String>) -> JoinHandle<()> {
     log::info!("Starting thread.");
 
-    thread::spawn(move || {
-        loop {
-            let key = PrivateKey::generate();
-            let principal = key.clone().into_identity().sender().unwrap().to_string();
+    thread::spawn(move || loop {
+        let key = PrivateKey::generate();
+        let principal = key.clone().into_identity().sender().unwrap().to_string();
 
-            if patterns.iter().any(|x| principal.contains(x)) {
-                let path = dir.join(format!("{}.pem", principal));
-                println!("Found Principal {}", principal);
-                key.store_pem_file("qti3e", path);
-            }
+        if patterns.iter().any(|x| principal.contains(x)) {
+            let path = dir.join(format!("{}.pem", principal));
+            println!("Found Principal {}", principal);
+            key.store_pem_file("", path);
         }
     })
 }

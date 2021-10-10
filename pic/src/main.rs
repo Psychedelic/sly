@@ -9,20 +9,19 @@ use pretty_env_logger::formatted_builder;
 mod actors;
 mod commands;
 mod lib;
+mod wasm_optimizer;
 
 fn main() -> Result<()> {
     setup_panic!();
 
     let opts: commands::App = commands::App::parse();
 
-    let level = if opts.verbose >= 3 {
+    let level = if opts.verbose >= 2 {
         LevelFilter::Trace
-    } else if opts.verbose == 2 {
-        LevelFilter::Debug
     } else if opts.verbose == 1 {
-        LevelFilter::Info
+        LevelFilter::Debug
     } else {
-        LevelFilter::Warn
+        LevelFilter::Info
     };
 
     formatted_builder().filter(None, level).init();
