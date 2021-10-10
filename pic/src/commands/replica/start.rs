@@ -1,8 +1,8 @@
 use crate::actors::{start_replica, start_shutdown_controller};
-use crate::lib::command::Command;
+use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;
-use actix::System;
 use anyhow::Result;
+use async_trait::async_trait;
 use clap::Clap;
 
 #[derive(Clap)]
@@ -12,17 +12,13 @@ pub struct ReplicaStartOpts {
     no_artificial_delay: bool,
 }
 
-impl Command for ReplicaStartOpts {
-    fn exec(self, _: &mut Env) -> Result<()> {
-        let system = System::new();
+#[async_trait]
+impl AsyncCommand for ReplicaStartOpts {
+    const RUN_SYSTEM: bool = true;
 
-        system.block_on(async {
-            let shutdown_controller = start_shutdown_controller()?;
-            start_replica(Some(shutdown_controller), self.no_artificial_delay)
-        })?;
-
-        system.run()?;
-
+    async fn async_exec(self, env: &mut Env) -> Result<()> {
+        let shutdown_controller = start_shutdown_controller()?;
+        start_replica(Some(shutdown_controller), self.no_artificial_delay)?;
         Ok(())
     }
 }

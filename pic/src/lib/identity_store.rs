@@ -11,7 +11,7 @@ use std::path::PathBuf;
 pub struct IdentityStore {
     directory: PathBuf,
     current: String,
-    identities: BTreeMap<String, Box<dyn Identity>>,
+    keys: BTreeMap<String, PrivateKey>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -31,7 +31,7 @@ impl IdentityStore {
         mkdirp(directory.clone())?;
 
         // Read the identities from the directory.
-        let mut identities = BTreeMap::<String, Box<dyn Identity>>::new();
+        let mut identities = BTreeMap::<String, PrivateKey>::new();
         for (name, file_path) in glob_pem_files(&directory)? {
             log::trace!(
                 "Loading pem file for identity '{}' from {:?}",
@@ -40,7 +40,7 @@ impl IdentityStore {
             );
             let key = PrivateKey::from_pem_file(&file_path)
                 .with_context(|| format!("Could not load pem file: {:?}", file_path))?;
-            identities.insert(name, key.into_identity());
+            identities.insert(name, key);
         }
 
         // Read the config to maybe_config.
@@ -59,11 +59,11 @@ impl IdentityStore {
         let mut store = Self {
             directory,
             current: "".into(),
-            identities,
+            keys: identities,
         };
 
         // Create the default identity if it doesn't already exists.
-        if store.identities.is_empty() {
+        if store.keys.is_empty() {
             log::trace!("Creating default identity because no identity exists.");
             store
                 .create("default")
@@ -71,11 +71,11 @@ impl IdentityStore {
         }
 
         match maybe_config {
-            Some(config) if store.identities.contains_key(&config.default) => {
+            Some(config) if store.keys.contains_key(&config.default) => {
                 store.current = config.default;
             }
             _ => {
-                let default = store.identities.keys().next().unwrap().clone();
+                let default = store.keys.keys().next().unwrap().clone();
                 log::info!(
                     "Could not load the default identity. Changing the default identity to '{}'",
                     default
@@ -90,7 +90,7 @@ impl IdentityStore {
     /// Create a new randomly generated identity and store it with the given name.
     pub fn create(&mut self, name: &str) -> anyhow::Result<()> {
         log::trace!("Creating new identity '{}'", name);
-        if self.identities.contains_key(name) {
+        if self.keys.contains_key(name) {
             bail!("Duplicate identity name {}.", name);
         }
 
@@ -101,7 +101,7 @@ impl IdentityStore {
     /// Import a new identity from a pem file.
     pub fn import(&mut self, name: &str, file_path: &str) -> anyhow::Result<()> {
         log::trace!("Importing new identity '{}' from pem '{}'", name, file_path);
-        if self.identities.contains_key(name) {
+        if self.keys.contains_key(name) {
             bail!("Duplicate identity name {}.", name);
         }
 
@@ -114,8 +114,7 @@ impl IdentityStore {
         let pem_path = self.directory.join(pem_filename);
         key.store_pem_file(name, pem_path)?;
 
-        let identity = key.into_identity();
-        self.identities.insert(name.into(), identity);
+        self.keys.insert(name.into(), key);
 
         Ok(())
     }
@@ -123,22 +122,22 @@ impl IdentityStore {
     /// Remove the identity with the given name.
     pub fn remove(&mut self, name: &str) -> anyhow::Result<()> {
         log::trace!("Removing identity '{}'", name);
-        if !self.identities.contains_key(name) {
+        if !self.keys.contains_key(name) {
             bail!("Can not find identity {}", name);
         }
 
         let path = self.directory.join(format!("{}.pem", name));
         fs::remove_file(path)?;
 
-        self.identities.remove(name);
+        self.keys.remove(name);
 
         if self.current == name {
-            if self.identities.is_empty() {
+            if self.keys.is_empty() {
                 log::trace!("All of the identities are removed. Creating a new default.");
                 self.create("default")?;
             }
 
-            let default = self.identities.keys().next().unwrap().clone();
+            let default = self.keys.keys().next().unwrap().clone();
             log::trace!(
                 "Default identity was removed. Changing the default identity to {}",
                 default
@@ -152,17 +151,17 @@ impl IdentityStore {
     /// Rename an identity to its new name.
     pub fn rename(&mut self, name: &str, new_name: &str) -> anyhow::Result<()> {
         log::trace!("Renaming identity '{}' to '{}'", name, new_name);
-        if !self.identities.contains_key(name) {
+        if !self.keys.contains_key(name) {
             bail!("Can not find identity {}", name);
         }
 
-        if self.identities.contains_key(new_name) {
+        if self.keys.contains_key(new_name) {
             bail!("Duplicate identity name {}.", new_name);
         }
 
         // Perform the local rename.
-        let identity = self.identities.remove(name).unwrap();
-        self.identities.insert(new_name.into(), identity);
+        let identity = self.keys.remove(name).unwrap();
+        self.keys.insert(new_name.into(), identity);
 
         // Rename the file.
         let from_path = self.directory.join(format!("{}.pem", name));
@@ -181,7 +180,7 @@ impl IdentityStore {
     pub fn set_current(&mut self, name: &str) -> anyhow::Result<()> {
         log::trace!("Setting the current identity to {}", name);
 
-        if !self.identities.contains_key(name) {
+        if !self.keys.contains_key(name) {
             bail!("Can not find identity {}", name);
         }
 
@@ -203,12 +202,12 @@ impl IdentityStore {
 
     /// Return an iterator over the name of all the loaded identities.
     pub fn identity_names(&self) -> impl Iterator<Item = &String> {
-        self.identities.keys()
+        self.keys.keys()
     }
 
     /// Return the identity by name.
-    pub fn get_identity(&self, name: &str) -> Option<&Box<dyn Identity>> {
-        self.identities.get(name)
+    pub fn get_identity(&self, name: &str) -> Option<Box<dyn Identity>> {
+        self.keys.get(name).map(|k| k.clone().into_identity())
     }
 }
 

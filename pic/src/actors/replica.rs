@@ -114,6 +114,10 @@ impl Actor for ReplicaActor {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.start_replica(ctx.address());
     }
+
+    fn stopped(&mut self, _: &mut Self::Context) {
+        let _ = fs::remove_file(&self.config.write_port_to);
+    }
 }
 
 impl Handler<signals::PortChangeSubscribe> for ReplicaActor {
