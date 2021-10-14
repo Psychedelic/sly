@@ -10,6 +10,7 @@ mod new;
 mod principal;
 mod replica;
 mod wasm;
+mod call;
 
 /// Psychedelic's CLI for the Internet Computer.
 #[derive(Clap)]

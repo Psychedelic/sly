@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "pic"
+    "sly"
 ]
 
 [profile.release]
