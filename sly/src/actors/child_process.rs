@@ -118,6 +118,15 @@ impl Actor for ChildProcessActor {
 
         if let Some(join) = self.thread_handle.take() {
             let _ = join.join();
+
+            if let Some(path) = &self.pid_file {
+                if fs::remove_file(path).is_ok() {
+                    log::trace!(
+                        "Removed the pid file for process '{}' after probable panic.",
+                        self.name
+                    )
+                }
+            }
         }
 
         Running::Stop
@@ -229,7 +238,9 @@ fn start_runner_thread(
             fs::remove_file(path).expect(&format!(
                 "Cannot remove the PID lock for process '{}'",
                 name
-            ))
+            ));
+
+            log::trace!("Removed the PID file for process '{}'.", name)
         }
     };
 
