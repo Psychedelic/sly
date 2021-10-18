@@ -7,7 +7,7 @@ use clap::Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Clap)]
 pub struct CandidGenOpts {
@@ -41,7 +41,7 @@ impl Command for CandidGenOpts {
     }
 }
 
-fn gen_file_bindings(file: &str, dir: &PathBuf, opts: &CandidGenOpts) -> Result<()> {
+fn gen_file_bindings(file: &str, dir: &Path, opts: &CandidGenOpts) -> Result<()> {
     let mut parser = CandidParser::default();
     let maybe_env = result_flatten(parser.parse(file).map(|_| parser.construct_type_env()));
 
@@ -61,19 +61,19 @@ fn gen_file_bindings(file: &str, dir: &PathBuf, opts: &CandidGenOpts) -> Result<
     if opts.js {
         let source = candid::bindings::javascript::compile(env, actor);
         let path = dir.join(format!("{}.js", filename));
-        fs::write(path.clone(), source).expect(&format!("Write to {:?} failed.", path));
+        fs::write(path.clone(), source).unwrap_or_else(|_| panic!("Write to {:?} failed.", path));
     }
 
     if opts.ts {
         let source = candid::bindings::typescript::compile(env, actor);
         let path = dir.join(format!("{}.ts", filename));
-        fs::write(path.clone(), source).expect(&format!("Write to {:?} failed.", path));
+        fs::write(path.clone(), source).unwrap_or_else(|_| panic!("Write to {:?} failed.", path));
     }
 
     if opts.motoko {
         let source = candid::bindings::motoko::compile(env, actor);
         let path = dir.join(format!("{}.mo", filename));
-        fs::write(path.clone(), source).expect(&format!("Write to {:?} failed.", path));
+        fs::write(path.clone(), source).unwrap_or_else(|_| panic!("Write to {:?} failed.", path));
     }
 
     Ok(())

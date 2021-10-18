@@ -28,13 +28,15 @@ pub struct ShutdownController {
     shutdown_subscribers: Vec<Recipient<signals::outbound::Shutdown>>,
 }
 
-impl ShutdownController {
-    pub fn new() -> Self {
-        ShutdownController {
+impl Default for ShutdownController {
+    fn default() -> Self {
+        Self {
             shutdown_subscribers: Vec::new(),
         }
     }
+}
 
+impl ShutdownController {
     // This is copied with minor changes from
     //   https://github.com/getsentry/relay/blob/master/relay-server/src/actors/controller.rs
     pub fn shutdown(&mut self, ctx: &mut Context<Self>) {

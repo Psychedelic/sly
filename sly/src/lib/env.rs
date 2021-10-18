@@ -23,7 +23,7 @@ impl Env {
             .join("psychedelic")
             .join("identities");
 
-        let identity_store = IdentityStore::load(directory)?;
+        let identity_store = IdentityStore::load(&directory)?;
 
         let identity = if let Some(name) = identity {
             if identity_store.get_identity(name).is_none() {
@@ -51,11 +51,11 @@ impl Env {
     /// Return the network that should be used.
     pub fn ic_url(&self) -> Result<String> {
         let lock = self.ic_server.lock().unwrap();
-        let mut net = lock.borrow_mut();
+        let net = lock.borrow_mut();
 
         if net.is_none() {
             let value = parse_network(self.network.as_str())?;
-            net.insert(value.strip_suffix("/").unwrap_or(value.as_str()).to_owned());
+            return Ok(value.strip_suffix('/').unwrap_or_default().into());
         }
 
         Ok(net.as_ref().unwrap().to_owned())
