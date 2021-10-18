@@ -168,7 +168,7 @@ impl From<&ReplicaActorConfig> for Command {
 
         cmd.args(&[
             "--http-port-file",
-            &config.write_port_to.to_str().unwrap_or_default(),
+            config.write_port_to.to_str().unwrap_or_default(),
         ]);
 
         if config.no_artificial_delay {

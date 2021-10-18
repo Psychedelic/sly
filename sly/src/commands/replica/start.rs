@@ -16,7 +16,7 @@ pub struct ReplicaStartOpts {
 impl AsyncCommand for ReplicaStartOpts {
     const RUN_SYSTEM: bool = true;
 
-    async fn async_exec(self, env: &mut Env) -> Result<()> {
+    async fn async_exec(self, _env: &mut Env) -> Result<()> {
         let shutdown_controller = start_shutdown_controller()?;
         start_replica(Some(shutdown_controller), self.no_artificial_delay)?;
         Ok(())

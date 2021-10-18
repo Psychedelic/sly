@@ -3,6 +3,7 @@ use crate::lib::env::Env;
 use anyhow::Result;
 use clap::{AppSettings, Clap};
 
+mod call;
 mod candid;
 mod deploy;
 mod identity;
@@ -10,7 +11,6 @@ mod new;
 mod principal;
 mod replica;
 mod wasm;
-mod call;
 
 /// Psychedelic's CLI for the Internet Computer.
 #[derive(Clap)]
