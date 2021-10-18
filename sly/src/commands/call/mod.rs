@@ -3,7 +3,7 @@ use crate::lib::env::Env;
 use anyhow::Result;
 use clap::Clap;
 
-pub mod query;
+mod query;
 
 #[derive(Clap)]
 pub enum CallSubCommands {

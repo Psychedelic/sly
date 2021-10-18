@@ -116,7 +116,7 @@ impl AsyncCommand for QueryOpts {
     }
 }
 
-pub fn get_candid_type(
+fn get_candid_type(
     idl_path: &std::path::Path,
     method_name: &str,
 ) -> Result<Option<(TypeEnv, Function)>> {
@@ -138,7 +138,7 @@ pub fn get_candid_type(
     }
 }
 
-pub fn check_candid_file(idl_path: &std::path::Path) -> Result<(TypeEnv, Option<Type>)> {
+fn check_candid_file(idl_path: &std::path::Path) -> Result<(TypeEnv, Option<Type>)> {
     let idl_file = std::fs::read_to_string(idl_path)
         .with_context(|| format!("Failed to read Candid file: {}", idl_path.to_string_lossy()))?;
     let ast = idl_file.parse::<IDLProg>().with_context(|| {
