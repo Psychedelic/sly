@@ -49,6 +49,9 @@ pub enum AppSubCommands {
     Deploy(deploy::DeployOpts),
     /// Search for a given principal id.
     PrincipalGen(principal::PrincipalOpts),
+    /// Canister call
+    #[clap(subcommand)]
+    Call(call::CallSubCommands),
 }
 
 impl Command for AppSubCommands {
@@ -61,6 +64,7 @@ impl Command for AppSubCommands {
             AppSubCommands::New(opts) => opts.exec(env),
             AppSubCommands::Deploy(opts) => opts.exec(env),
             AppSubCommands::PrincipalGen(opts) => opts.exec(env),
+            AppSubCommands::Call(opts) => opts.exec(env),
         }
     }
 }

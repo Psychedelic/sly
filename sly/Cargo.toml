@@ -42,3 +42,5 @@ wabt = "0.10.0"
 binaryen = "0.12.0"
 humansize = "1.1.1"
 async-trait = "0.1.51"
+humantime = "2.0.1"
+
