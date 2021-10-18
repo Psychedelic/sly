@@ -12,7 +12,6 @@ pub fn result_flatten<T, E>(result: Result<Result<T, E>, E>) -> Result<T, E> {
 
 /// Checks if the provided string is a valid principal id.
 #[inline]
-#[allow(dead_code)]
 fn is_principal(text: &str) -> Result<(), String> {
     Principal::from_text(text)
         .map(|_| ())
