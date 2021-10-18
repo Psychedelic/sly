@@ -183,10 +183,8 @@ fn start_runner_thread(
                 return;
             }
 
-            fs::write(path, "").expect(&format!(
-                "Could not obtain the lock for process '{}'.",
-                name
-            ));
+            fs::write(path, "")
+                .unwrap_or_else(|_| panic!("Could not obtain the lock for process '{}'.", name));
         }
 
         let mut done = false;
@@ -196,13 +194,12 @@ fn start_runner_thread(
 
             let mut child = command
                 .spawn()
-                .expect(&format!("Could not start the process for '{}'.", name));
+                .unwrap_or_else(|_| panic!("Could not start the process for '{}'.", name));
 
             if let Some(path) = &pid_file {
-                fs::write(path, format!("{}", child.id())).expect(&format!(
-                    "Could not write the PID lock for process '{}'.",
-                    name
-                ));
+                fs::write(path, format!("{}", child.id())).unwrap_or_else(|_| {
+                    panic!("Could not write the PID lock for process '{}'.", name)
+                });
             }
 
             if let Some(cb) = &callback {
@@ -235,10 +232,8 @@ fn start_runner_thread(
         }
 
         if let Some(path) = &pid_file {
-            fs::remove_file(path).expect(&format!(
-                "Cannot remove the PID lock for process '{}'",
-                name
-            ));
+            fs::remove_file(path)
+                .unwrap_or_else(|_| panic!("Cannot remove the PID lock for process '{}'", name));
 
             log::trace!("Removed the PID file for process '{}'.", name)
         }

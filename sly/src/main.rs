@@ -26,7 +26,7 @@ fn main() -> Result<()> {
 
     formatted_builder().filter(None, level).init();
 
-    let identity = opts.identity.as_ref().map(|x| x.as_str());
+    let identity = opts.identity.as_deref();
     let mut env = Env::new(opts.network, identity)?;
 
     opts.sub.exec(&mut env)

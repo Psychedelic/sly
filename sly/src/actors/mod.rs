@@ -12,7 +12,7 @@ pub mod shutdown_controller;
 
 /// Start a shutdown controller actor.
 pub fn start_shutdown_controller() -> Result<Addr<ShutdownController>> {
-    Ok(ShutdownController::new().start())
+    Ok(ShutdownController::default().start())
 }
 
 /// Start a replica, returns the actor's address.

@@ -62,24 +62,21 @@ impl CandidParser {
         // Define all of the bindings across all the imported files first.
         for (file_id, prog) in self.programs.iter().enumerate().rev() {
             for dec in &prog.decs {
-                match dec {
-                    Dec::TypD(binding) => {
-                        let name = &binding.id.name;
-                        let span = binding.id.span.clone();
+                if let Dec::TypD(binding) = dec {
+                    let name = &binding.id.name;
+                    let span = binding.id.span.clone();
 
-                        if let Some(pos) = self.binding_positions.get(name) {
-                            return Err(Diagnostic::error()
-                                .with_message("Duplicate name.")
-                                .with_labels(vec![
-                                    Label::primary(file_id, span.clone()),
-                                    Label::secondary(pos.0, pos.1.clone())
-                                        .with_message("Another definition was found here."),
-                                ]));
-                        }
-
-                        self.binding_positions.insert(name.clone(), (file_id, span));
+                    if let Some(pos) = self.binding_positions.get(name) {
+                        return Err(Diagnostic::error()
+                            .with_message("Duplicate name.")
+                            .with_labels(vec![
+                                Label::primary(file_id, span),
+                                Label::secondary(pos.0, pos.1.clone())
+                                    .with_message("Another definition was found here."),
+                            ]));
                     }
-                    _ => {}
+
+                    self.binding_positions.insert(name.clone(), (file_id, span));
                 }
             }
         }
@@ -413,7 +410,7 @@ fn resolve_path(base: &Path, file: &str) -> PathBuf {
 
 /// Compute the relative path to the given path from the cwd and return the result as an
 /// string.
-fn display_path(path: &PathBuf) -> String {
+fn display_path(path: &Path) -> String {
     let cwd = std::env::current_dir().expect("Cannot get cwd.");
     let relative = diff_paths(path, cwd).unwrap();
     relative.to_str().unwrap().to_string()

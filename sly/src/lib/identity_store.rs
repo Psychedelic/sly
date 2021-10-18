@@ -5,7 +5,7 @@ use mkdirp::mkdirp;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// A data store that keeps the identities loaded by a user.
 pub struct IdentityStore {
@@ -22,17 +22,17 @@ pub struct Config {
 
 impl IdentityStore {
     /// Load an identity store from the given path or init one if it doesn't already exists.
-    pub fn load(directory: PathBuf) -> anyhow::Result<Self> {
+    pub fn load(directory: &Path) -> anyhow::Result<Self> {
         log::trace!(
             "Loading the identity store from the directory {:?}",
             directory
         );
         // Make sure the directory exists.
-        mkdirp(directory.clone())?;
+        mkdirp(directory)?;
 
         // Read the identities from the directory.
         let mut identities = BTreeMap::<String, PrivateKey>::new();
-        for (name, file_path) in glob_pem_files(&directory)? {
+        for (name, file_path) in glob_pem_files(directory)? {
             log::trace!(
                 "Loading pem file for identity '{}' from {:?}",
                 name,
@@ -57,7 +57,7 @@ impl IdentityStore {
         // Create a tmp store we use to create the default identity on in case it does not
         // already exists.
         let mut store = Self {
-            directory,
+            directory: directory.to_path_buf(),
             current: "".into(),
             keys: identities,
         };
@@ -212,7 +212,7 @@ impl IdentityStore {
 }
 
 /// Create an iterator over (IdentityName, PemFilePath) of all the pem files in a directory.
-fn glob_pem_files(directory: &PathBuf) -> anyhow::Result<impl Iterator<Item = (String, PathBuf)>> {
+fn glob_pem_files(directory: &Path) -> anyhow::Result<impl Iterator<Item = (String, PathBuf)>> {
     Ok(fs::read_dir(directory)?.filter_map(|entry| {
         if let Ok(entry) = entry {
             let file_path = entry.path();
