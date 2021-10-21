@@ -18,7 +18,7 @@ mod wasm;
 #[clap(global_setting = AppSettings::ColoredHelp)]
 pub struct App {
     /// The network to use when making calls to the I.C.
-    #[clap(short, long, possible_values=&(["local","ic"]), default_value = "local")]
+    #[clap(short, long, default_value = "local")]
     pub network: String,
     #[clap(long)]
     pub identity: Option<String>,
