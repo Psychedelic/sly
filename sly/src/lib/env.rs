@@ -55,7 +55,10 @@ impl Env {
 
         if net.is_none() {
             let value = parse_network(self.network.as_str())?;
-            return Ok(value.strip_suffix('/').unwrap_or_default().into());
+            return Ok(value
+                .strip_suffix('/')
+                .unwrap_or_else(|| value.as_str())
+                .into());
         }
 
         Ok(net.as_ref().unwrap().to_owned())
