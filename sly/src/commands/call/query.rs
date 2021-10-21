@@ -1,17 +1,18 @@
+use crate::lib::candid::CandidParser;
 use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;
 use crate::lib::utils;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use candid::{
-    check_prog,
     parser::value::IDLValue,
     types::{Function, Type},
-    IDLArgs, IDLProg, Principal, TypeEnv,
+    IDLArgs, Principal, TypeEnv,
 };
 use clap::Clap;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use ic_agent::{agent::agent_error::HttpErrorPayload, AgentError};
-use std::path::PathBuf;
 
 #[derive(Clap, Debug)]
 pub struct QueryOpts {
@@ -23,12 +24,12 @@ pub struct QueryOpts {
     argument: Option<String>,
     /// Path to a candid file to analyze the argument
     #[clap(long, short)]
-    candid: Option<PathBuf>,
+    candid: Option<String>,
     /// The type of input (raw or idl).
-    #[clap(long, short, possible_values=&(["raw","idl"]), default_value = "idl")]
+    #[clap(long, short, possible_values = & (["raw", "idl"]), default_value = "idl")]
     in_type: ArgType,
     /// The type of output (raw or idl).
-    #[clap(long, short, possible_values=&(["raw","idl"]), default_value = "idl")]
+    #[clap(long, short, possible_values = & (["raw", "idl"]), default_value = "idl")]
     out_type: ArgType,
     /// An optional field to set the expiry time on requests. Can be a human
     /// readable time (like `100s`) or a number of seconds.
@@ -116,16 +117,9 @@ impl AsyncCommand for QueryOpts {
     }
 }
 
-fn get_candid_type(
-    idl_path: &std::path::Path,
-    method_name: &str,
-) -> Result<Option<(TypeEnv, Function)>> {
-    let (env, ty) = check_candid_file(idl_path).with_context(|| {
-        format!(
-            "Failed when checking candid file: {}",
-            idl_path.to_string_lossy()
-        )
-    })?;
+fn get_candid_type(idl_path: &str, method_name: &str) -> Result<Option<(TypeEnv, Function)>> {
+    let (env, ty) = check_candid_file(idl_path)
+        .with_context(|| format!("Failed when checking candid file: {}", idl_path))?;
     match ty {
         None => Ok(None),
         Some(actor) => {
@@ -138,23 +132,23 @@ fn get_candid_type(
     }
 }
 
-fn check_candid_file(idl_path: &std::path::Path) -> Result<(TypeEnv, Option<Type>)> {
-    let idl_file = std::fs::read_to_string(idl_path)
-        .with_context(|| format!("Failed to read Candid file: {}", idl_path.to_string_lossy()))?;
-    let ast = idl_file.parse::<IDLProg>().with_context(|| {
-        format!(
-            "Failed to parse the Candid file: {}",
-            idl_path.to_string_lossy()
-        )
-    })?;
-    let mut env = TypeEnv::new();
-    let actor = check_prog(&mut env, &ast).with_context(|| {
-        format!(
-            "Failed to type check the Candid file: {}",
-            idl_path.to_string_lossy()
-        )
-    })?;
-    Ok((env, actor))
+fn check_candid_file(idl_path: &str) -> Result<(TypeEnv, Option<Type>)> {
+    let mut candid_parser = CandidParser::default();
+    let maybe_env = utils::result_flatten(
+        candid_parser
+            .parse(idl_path)
+            .map(|_| candid_parser.construct_type_env()),
+    );
+    if let Err(diagnostic) = maybe_env {
+        let writer = StandardStream::stderr(ColorChoice::Always);
+        let config = codespan_reporting::term::Config::default();
+        term::emit(&mut writer.lock(), &config, &candid_parser, &diagnostic)?;
+        bail!("Candid check failed.");
+    }
+    Ok((
+        candid_parser.get_type_env().clone(),
+        candid_parser.get_service_for(idl_path).clone(),
+    ))
 }
 
 fn blob_from_arguments(
