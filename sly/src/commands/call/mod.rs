@@ -11,7 +11,7 @@ mod update;
 pub enum CallSubCommands {
     /// Send a query call
     Query(query::QueryOpts),
-    /// Send a query call
+    /// Send a update call
     Update(update::UpdateOpts),
 }
 
