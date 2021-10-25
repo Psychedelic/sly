@@ -1,4 +1,4 @@
-use crate::lib::command::Command;
+use crate::lib::command::{AsyncCommand, Command};
 use crate::lib::env::Env;
 use anyhow::Result;
 use clap::{AppSettings, Clap};
@@ -50,7 +50,6 @@ pub enum AppSubCommands {
     /// Search for a given principal id.
     PrincipalGen(principal::PrincipalOpts),
     /// Canister call
-    #[clap(subcommand)]
     Call(call::CallSubCommands),
 }
 
