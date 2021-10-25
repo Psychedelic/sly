@@ -7,9 +7,10 @@ use async_trait::async_trait;
 use candid::Principal;
 use clap::Clap;
 use ic_agent::{agent::agent_error::HttpErrorPayload, AgentError};
+use std::time::Duration;
 
 #[derive(Clap, Debug)]
-pub struct QueryOpts {
+pub struct UpdateOpts {
     /// Canister id
     canister_id: String,
     /// Method name to call on the canister
@@ -32,7 +33,7 @@ pub struct QueryOpts {
 }
 
 #[async_trait]
-impl AsyncCommand for QueryOpts {
+impl AsyncCommand for UpdateOpts {
     async fn async_exec(self, env: &mut Env) -> Result<()> {
         let canister_id =
             &Principal::from_text(self.canister_id).context("Invalid canister principal format")?;
@@ -54,22 +55,22 @@ impl AsyncCommand for QueryOpts {
         let arg_blob = helper::blob_from_arguments(argument, in_type, &method_type)
             .context("Invalid arguments")?;
 
+        // 5 minutes is max ingress timeout
+        let timeout = self
+            .ttl
+            .map(|ht| ht.into())
+            .unwrap_or_else(|| Duration::from_secs(60 * 5));
+
         let effective_canister_id =
-            utils::get_effective_canister_id(method_name, &arg_blob, canister_id)
-                .context("Failed to get effective_canister_id for this call")?;
+            utils::get_effective_canister_id(method_name, &arg_blob, canister_id)?;
 
         let agent = env.create_agent().await?;
-        let mut builder = agent.query(canister_id, method_name);
-
-        let expire_after = self.ttl.map(|ht| ht.into());
-        if let Some(d) = expire_after {
-            builder.expire_after(d);
-        }
-
-        let result = builder
-            .with_arg(&arg_blob)
+        let result = agent
+            .update(canister_id, method_name)
             .with_effective_canister_id(effective_canister_id)
-            .call()
+            .with_arg(&arg_blob)
+            .expire_after(timeout)
+            .call_and_wait(helper::waiter_with_exponential_backoff())
             .await;
 
         match result {
@@ -87,10 +88,6 @@ impl AsyncCommand for QueryOpts {
                     format!("Server returned an HTTP Error:\n  Code: {}\n", status);
                 match content_type.as_deref() {
                     None => {
-                        error_message.push_str(&format!("  Content: {}\n", hex::encode(content)))
-                    }
-                    Some("text/plain; charset=UTF-8") | Some("text/plain") => {
-                        error_message.push_str("  ContentType: text/plain\n");
                         error_message.push_str(&format!(
                             "  Content:     {}\n",
                             String::from_utf8_lossy(&content)
@@ -98,8 +95,10 @@ impl AsyncCommand for QueryOpts {
                     }
                     Some(x) => {
                         error_message.push_str(&format!("  ContentType: {}\n", x));
-                        error_message
-                            .push_str(&format!("  Content:     {}\n", hex::encode(&content)));
+                        error_message.push_str(&format!(
+                            "  Content:     {}\n",
+                            String::from_utf8_lossy(&content)
+                        ));
                     }
                 }
                 bail!(error_message);
