@@ -1,11 +1,12 @@
-use crate::lib::candid::CandidParser;
-use crate::lib::command::Command;
-use crate::lib::env::Env;
 use anyhow::bail;
 use anyhow::Result;
 use clap::Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+
+use crate::lib::candid::CandidParser;
+use crate::lib::command::Command;
+use crate::lib::env::Env;
 
 #[derive(Clap)]
 pub struct CandidFormatOpts {
