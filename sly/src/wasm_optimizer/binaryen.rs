@@ -1,6 +1,7 @@
-use super::OptimizationPass;
 use anyhow::{anyhow, Result};
 use binaryen::{CodegenConfig, Module};
+
+use super::OptimizationPass;
 
 pub struct BinaryenPass {}
 
