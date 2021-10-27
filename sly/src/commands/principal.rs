@@ -1,11 +1,13 @@
-use crate::lib::command::Command;
-use crate::lib::env::Env;
-use crate::lib::private_key::PrivateKey;
-use anyhow::{anyhow, Context};
-use clap::Clap;
 use std::path::PathBuf;
 use std::thread;
 use std::thread::JoinHandle;
+
+use anyhow::{anyhow, Context};
+use clap::Clap;
+
+use crate::lib::command::Command;
+use crate::lib::env::Env;
+use crate::lib::private_key::PrivateKey;
 
 #[derive(Clap)]
 pub struct PrincipalOpts {
