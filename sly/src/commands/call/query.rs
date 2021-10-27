@@ -1,11 +1,13 @@
+use std::ops::Deref;
+use std::time::Duration;
+
+use anyhow::{Context, Result};
+use candid::Principal;
+
 use crate::commands::call::helper;
 use crate::commands::call::{Args, CallSubCommands};
 use crate::lib::env::Env;
 use crate::lib::utils;
-use anyhow::{Context, Result};
-use candid::Principal;
-use std::ops::Deref;
-use std::time::Duration;
 
 pub async fn async_exec(args: &Args, opts: &CallSubCommands, env: &Env) -> Result<()> {
     let canister_id = &Principal::from_text(args.canister_id.deref())
