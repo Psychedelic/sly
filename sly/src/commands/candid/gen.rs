@@ -1,13 +1,15 @@
-use crate::lib::candid::CandidParser;
-use crate::lib::command::Command;
-use crate::lib::env::Env;
-use crate::lib::utils::result_flatten;
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use anyhow::{bail, Result};
 use clap::Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use std::fs;
-use std::path::{Path, PathBuf};
+
+use crate::lib::candid::CandidParser;
+use crate::lib::command::Command;
+use crate::lib::env::Env;
+use crate::lib::utils::result_flatten;
 
 #[derive(Clap)]
 pub struct CandidGenOpts {
