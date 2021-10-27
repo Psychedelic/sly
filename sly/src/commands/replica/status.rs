@@ -1,8 +1,9 @@
-use crate::lib::command::AsyncCommand;
-use crate::lib::env::Env;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use clap::Clap;
+
+use crate::lib::command::AsyncCommand;
+use crate::lib::env::Env;
 
 #[derive(Clap)]
 pub struct ReplicaStatusOpts {}
