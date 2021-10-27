@@ -56,3 +56,9 @@ impl AsyncCommand for CallSubCommands {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn dummy_test() {}
+}
