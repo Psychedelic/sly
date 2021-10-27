@@ -1,11 +1,13 @@
-use crate::lib::command::Command;
-use crate::lib::env::Env;
-use crate::wasm_optimizer;
+use std::fs;
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 use clap::Clap;
 use humansize::{file_size_opts, FileSize};
-use std::fs;
-use std::path::PathBuf;
+
+use crate::lib::command::Command;
+use crate::lib::env::Env;
+use crate::wasm_optimizer;
 
 #[derive(Clap)]
 pub struct WasmOptimizeOpts {
