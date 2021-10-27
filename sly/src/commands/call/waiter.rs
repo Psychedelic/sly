@@ -1,5 +1,6 @@
-use garcon::Delay;
 use std::time::Duration;
+
+use garcon::Delay;
 
 const RETRY_PAUSE: Duration = Duration::from_millis(200);
 const MAX_RETRY_PAUSE: Duration = Duration::from_secs(1);
