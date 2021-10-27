@@ -1,7 +1,9 @@
-use crate::lib::dfx::get_dfx_bin_root;
-use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::PathBuf;
+
+use anyhow::{bail, Context, Result};
+
+use crate::lib::dfx::get_dfx_bin_root;
 
 /// Return the path for the given toolchain binary.
 pub fn get_binary_command_path(binary_name: &str) -> Result<PathBuf> {

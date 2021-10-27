@@ -1,7 +1,8 @@
-use crate::lib::env::Env;
 use actix::System;
 use anyhow::Result;
 use async_trait::async_trait;
+
+use crate::lib::env::Env;
 
 pub trait Command {
     /// Execute the command.
