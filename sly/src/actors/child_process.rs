@@ -1,7 +1,9 @@
-use crate::actors::shutdown::{wait_for_child_or_receiver, ChildOrReceiver};
-use crate::actors::shutdown_controller::signals::outbound::Shutdown;
-use crate::actors::shutdown_controller::signals::{ShutdownSubscribe, ShutdownTrigger};
-use crate::actors::shutdown_controller::ShutdownController;
+use std::fs;
+use std::path::PathBuf;
+use std::process::Command;
+use std::thread::JoinHandle;
+use std::time::Duration;
+
 use actix::{
     Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, Context, Handler, ResponseActFuture,
     Running, WrapFuture,
@@ -9,11 +11,11 @@ use actix::{
 use anyhow::{Context as AnyhowContext, Result};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use garcon::{Delay, Waiter};
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
-use std::thread::JoinHandle;
-use std::time::Duration;
+
+use crate::actors::shutdown::{wait_for_child_or_receiver, ChildOrReceiver};
+use crate::actors::shutdown_controller::signals::outbound::Shutdown;
+use crate::actors::shutdown_controller::signals::{ShutdownSubscribe, ShutdownTrigger};
+use crate::actors::shutdown_controller::ShutdownController;
 
 /// The callback which gets executed after each process restart.
 pub type Callback = Box<dyn Fn(&Receiver<()>) + Send>;
