@@ -7,6 +7,7 @@ use candid::{IDLArgs, TypeEnv};
 use clap::Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use ic_agent::{agent::agent_error::HttpErrorPayload, AgentError};
 
 pub fn get_candid_type(idl_path: &str, method_name: &str) -> Result<Option<(TypeEnv, Function)>> {
     let (env, ty) = check_candid_file(idl_path)
@@ -139,14 +140,40 @@ impl std::str::FromStr for ArgType {
     }
 }
 
-use garcon::Delay;
-use std::time::Duration;
-
-const RETRY_PAUSE: Duration = Duration::from_millis(200);
-const MAX_RETRY_PAUSE: Duration = Duration::from_secs(1);
-
-pub fn waiter_with_exponential_backoff() -> Delay {
-    Delay::builder()
-        .exponential_backoff_capped(RETRY_PAUSE, 1.4, MAX_RETRY_PAUSE)
-        .build()
+pub fn print_agent_result(
+    result: Result<Vec<u8>, AgentError>,
+    out_type: &ArgType,
+    method_type: &Option<(TypeEnv, Function)>,
+) -> Result<()> {
+    match result {
+        Ok(blob) => {
+            print_idl_blob(&blob, out_type, method_type).context("Failed to print result blob")?;
+            Ok(())
+        }
+        Err(AgentError::TransportError(_)) => Ok(()),
+        Err(AgentError::HttpError(HttpErrorPayload {
+            status,
+            content_type,
+            content,
+        })) => {
+            let mut error_message = format!("Server returned an HTTP Error:\n  Code: {}\n", status);
+            match content_type.as_deref() {
+                None => {
+                    error_message.push_str(&format!(
+                        "  Content:     {}\n",
+                        String::from_utf8_lossy(&content)
+                    ));
+                }
+                Some(x) => {
+                    error_message.push_str(&format!("  ContentType: {}\n", x));
+                    error_message.push_str(&format!(
+                        "  Content:     {}\n",
+                        String::from_utf8_lossy(&content)
+                    ));
+                }
+            }
+            bail!(error_message);
+        }
+        Err(s) => Err(s).context("Got an error when make the canister call")?,
+    }
 }
