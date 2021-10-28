@@ -1,7 +1,8 @@
-use crate::lib::command::{AsyncCommand, Command};
-use crate::lib::env::Env;
 use anyhow::Result;
 use clap::{AppSettings, Clap};
+
+use crate::lib::command::{AsyncCommand, Command};
+use crate::lib::env::Env;
 
 mod call;
 mod candid;

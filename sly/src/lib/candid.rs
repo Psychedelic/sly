@@ -1,3 +1,8 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::ops::Range;
+use std::path::{Path, PathBuf};
+
 use candid::parser::token::Span;
 use candid::parser::types::{Binding, Dec, FuncMode, IDLType, PrimType, ToDoc, TypeField};
 use candid::types::{Field, Function, Type};
@@ -5,10 +10,6 @@ use candid::{IDLProg, TypeEnv};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{Error, Files, SimpleFiles};
 use pathdiff::diff_paths;
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
-use std::ops::Range;
-use std::path::{Path, PathBuf};
 
 // TODO(qti3e) Move this file to Psychedelic/candid repository.
 
@@ -287,7 +288,7 @@ impl CandidParser {
                     ty = match self.env.0.get(name) {
                         None => {
                             return Err(Diagnostic::error()
-                                .with_message(format!("Unbound type identifier: {}", name)))
+                                .with_message(format!("Unbound type identifier: {}", name)));
                         }
                         Some(ty) => ty,
                     };

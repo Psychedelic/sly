@@ -1,11 +1,13 @@
-use crate::lib::private_key::PrivateKey;
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use anyhow::{bail, Context};
 use ic_agent::Identity;
 use mkdirp::mkdirp;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+
+use crate::lib::private_key::PrivateKey;
 
 /// A data store that keeps the identities loaded by a user.
 pub struct IdentityStore {

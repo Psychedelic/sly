@@ -1,10 +1,12 @@
-use crate::lib::identity_store::IdentityStore;
-use crate::lib::toolchain;
+use std::cell::RefCell;
+use std::sync::Mutex;
+
 use anyhow::{bail, Context, Result};
 use dirs::config_dir;
 use ic_agent::{agent, Agent, Identity};
-use std::cell::RefCell;
-use std::sync::Mutex;
+
+use crate::lib::identity_store::IdentityStore;
+use crate::lib::toolchain;
 
 pub static MAIN_IC_NETWORK: &str = "https://ic0.app";
 

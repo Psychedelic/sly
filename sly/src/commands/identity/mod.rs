@@ -1,7 +1,8 @@
-use crate::lib::command::Command;
-use crate::lib::env::Env;
 use anyhow::Result;
 use clap::Clap;
+
+use crate::lib::command::Command;
+use crate::lib::env::Env;
 
 pub mod create;
 pub mod get_principal;

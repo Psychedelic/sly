@@ -1,5 +1,6 @@
-use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
+
+use anyhow::{bail, Context, Result};
 
 /// Return the path to the directory which current version of user's dfx uses to store
 /// the different toolchain binaries.

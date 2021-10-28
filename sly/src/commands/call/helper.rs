@@ -1,5 +1,3 @@
-use crate::lib::candid::CandidParser;
-use crate::lib::utils;
 use anyhow::{bail, Context, Result};
 use candid::parser::value::IDLValue;
 use candid::types::{Function, Type};
@@ -8,6 +6,9 @@ use clap::Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use ic_agent::{agent::agent_error::HttpErrorPayload, AgentError};
+
+use crate::lib::candid::CandidParser;
+use crate::lib::utils;
 
 pub fn get_candid_type(idl_path: &str, method_name: &str) -> Result<Option<(TypeEnv, Function)>> {
     let (env, ty) = check_candid_file(idl_path)
