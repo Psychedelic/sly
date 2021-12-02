@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use clap::Clap;
+use clap::Parser as Clap;
 use humansize::{file_size_opts, FileSize};
 
 use crate::lib::command::Command;
