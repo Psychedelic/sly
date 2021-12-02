@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use clap::Clap;
+use clap::Parser as Clap;
 
 use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;

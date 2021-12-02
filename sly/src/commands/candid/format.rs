@@ -1,6 +1,6 @@
 use anyhow::bail;
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser as Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
