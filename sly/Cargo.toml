@@ -44,6 +44,8 @@ humansize = "1.1.1"
 async-trait = "0.1.51"
 humantime = "2.0.1"
 zip = "0.5"
+walkdir = "2"
 
 [build-dependencies]
 zip = "0.5"
+walkdir = "2"
