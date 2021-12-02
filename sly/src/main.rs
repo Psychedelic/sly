@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser as Clap;
 use human_panic::setup_panic;
 use log::LevelFilter;
 use pretty_env_logger::formatted_builder;

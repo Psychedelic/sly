@@ -3,7 +3,7 @@ use std::thread;
 use std::thread::JoinHandle;
 
 use anyhow::{anyhow, Context};
-use clap::Clap;
+use clap::Parser as Clap;
 
 use crate::lib::command::Command;
 use crate::lib::env::Env;

@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use candid::parser::value::IDLValue;
 use candid::types::{Function, Type};
 use candid::{IDLArgs, TypeEnv};
-use clap::Clap;
+use clap::Parser as Clap;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use ic_agent::{agent::agent_error::HttpErrorPayload, AgentError};

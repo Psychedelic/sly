@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{AppSettings, Clap};
+use clap::{AppSettings, Parser as Clap};
 
 use crate::lib::command::{AsyncCommand, Command};
 use crate::lib::env::Env;
