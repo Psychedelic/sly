@@ -6,6 +6,8 @@ use crate::lib::env::Env;
 
 #[derive(Clap)]
 pub struct NewOpts {
+    #[clap(long, default_value = "simple")]
+    name: String,
     /// The template to use for the new project.
     #[clap(long, default_value = "simple")]
     template: String,
