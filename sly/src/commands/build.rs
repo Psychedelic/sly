@@ -2,7 +2,7 @@ use crate::lib::command::Command;
 use crate::lib::env::Env;
 use clap::Parser as Clap;
 use std::process::Command as CommandExec;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 
 #[derive(Clap)]
 pub struct BuildOpts {
@@ -18,11 +18,20 @@ pub struct BuildOpts {
 
 impl Command for BuildOpts {
     fn exec(self, env: &mut Env) -> anyhow::Result<()> {
-        for canister in self.canisters {
-            let workspace = env.workspace()?;
+        let workspace = env.workspace()?;
+        let canisters = if self.all { workspace.canisters.keys().cloned().collect() } else { self.canisters.clone() };
+        
+        // for checking if canisters exist
+        for canister in &canisters {
+            if workspace.get_canister(canister).is_none() {
+                bail!("Canister '{}' not found", canister);
+            }
+        }
+
+        for canister in canisters {
             let commands = workspace
                 .get_canister(&canister)
-                .ok_or(anyhow!("Wrong canister"))?
+                .unwrap()
                 .build
                 .get(&self.with_mode)
                 .ok_or(anyhow!("Wrong with_mode parameter"))?;
@@ -30,7 +39,7 @@ impl Command for BuildOpts {
             for command in commands {
                 // TODO: Shell Expand
                 CommandExec::new("sh")
-                .arg("-C")
+                .arg("-c")
                 .arg(command)
                 .spawn()
                 .expect("SH failed to parse the command");

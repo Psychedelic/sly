@@ -10,9 +10,9 @@ use std::path::PathBuf;
 pub struct Workspace {
     /// The root directory of the project, this is where the
     /// sly.json file can be found.
-    root: PathBuf,
+    pub root: PathBuf,
     /// The list of canisters.
-    canisters: BTreeMap<String, Canister>,
+    pub canisters: BTreeMap<String, Canister>,
 }
 
 #[derive(Debug, Clone)]
