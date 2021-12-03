@@ -28,7 +28,8 @@ fn main() -> Result<()> {
     formatted_builder().filter(None, level).init();
 
     let identity = opts.identity.as_deref();
-    let mut env = Env::new(opts.network, identity)?;
+    let config_path = opts.config;
+    let mut env = Env::new(opts.network, identity, config_path)?;
 
     opts.sub.exec(&mut env)
 }

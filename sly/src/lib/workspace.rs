@@ -6,6 +6,7 @@ use std::env;
 use std::path::PathBuf;
 
 /// Holds the information gathered from parsing Sly.json
+#[derive(Clone)]
 pub struct Workspace {
     /// The root directory of the project, this is where the
     /// sly.json file can be found.
@@ -14,7 +15,7 @@ pub struct Workspace {
     canisters: BTreeMap<String, Canister>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Canister {
     pub build: BTreeMap<String, Vec<String>>,
     pub test: BTreeMap<String, Vec<String>>,
@@ -41,6 +42,18 @@ impl Workspace {
         }
 
         bail!("No sly.json found in the current path.")
+    }
+
+    pub fn from_config_path(path: PathBuf) -> anyhow::Result<Self> {
+        if !path.is_file() {
+            bail!("'{}' is not a file.", path.to_string_lossy())
+        }
+
+        let root = path.parent().unwrap().into();
+        let reader = std::fs::File::open(path.clone())
+            .with_context(|| format!("Failed to open file '{}'", path.to_string_lossy()))?;
+
+        return Self::from_reader(root, reader);
     }
 
     /// Create a workspace from a Sly.json that is located in the given `root` directory.

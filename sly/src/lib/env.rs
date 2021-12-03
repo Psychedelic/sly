@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::{bail, Context, Result};
@@ -7,19 +8,26 @@ use ic_agent::{agent, Agent, Identity};
 
 use crate::lib::identity_store::IdentityStore;
 use crate::lib::toolchain;
+use crate::lib::workspace::Workspace;
 
 pub static MAIN_IC_NETWORK: &str = "https://ic0.app";
 
 pub struct Env {
     network: String,
     ic_server: Mutex<RefCell<Option<String>>>,
+    workspace: Mutex<RefCell<Option<Workspace>>>,
+    config_path: Option<PathBuf>,
     identity: String,
     identity_store: IdentityStore,
 }
 
 impl Env {
     /// Create a new env.
-    pub fn new(network: String, identity: Option<&str>) -> Result<Self> {
+    pub fn new(
+        network: String,
+        identity: Option<&str>,
+        config_path: Option<PathBuf>,
+    ) -> Result<Self> {
         let directory = config_dir()
             .expect("Cannot find the config dir.")
             .join("psychedelic")
@@ -40,6 +48,8 @@ impl Env {
         Ok(Self {
             network,
             ic_server: Mutex::new(RefCell::new(None)),
+            workspace: Mutex::new(RefCell::new(None)),
+            config_path,
             identity,
             identity_store,
         })
@@ -105,6 +115,27 @@ impl Env {
         }
 
         Ok(agent)
+    }
+
+    /// Return the workspace information by parsing the sly.json file
+    /// in the current directory or one of the parents.
+    pub fn workspace(&self) -> anyhow::Result<Workspace> {
+        let lock = self.workspace.lock().unwrap();
+        let mut workspace = lock.borrow_mut();
+
+        if workspace.is_some() {
+            return Ok(workspace.as_ref().unwrap().clone());
+        }
+
+        let w = if let Some(path) = &self.config_path {
+            Workspace::from_config_path(path.clone())
+        } else {
+            Workspace::from_current_directory()
+        }
+        .context("Loading sly.json failed.")?;
+
+        *workspace = Some(w.clone());
+        Ok(w)
     }
 }
 
