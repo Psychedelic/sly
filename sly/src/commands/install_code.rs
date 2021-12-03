@@ -1,4 +1,3 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser as Clap;
 
@@ -6,7 +5,7 @@ use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;
 
 #[derive(Clap)]
-pub struct DeployOpts {
+pub struct InstallOpts {
     /// The installation mode.
     #[clap(short, long, possible_values = & (["install", "reinstall", "upgrade"]), default_value = "install")]
     mode: String,
@@ -21,8 +20,8 @@ pub struct DeployOpts {
 }
 
 #[async_trait]
-impl AsyncCommand for DeployOpts {
-    async fn async_exec(self, env: &mut Env) -> Result<()> {
+impl AsyncCommand for InstallOpts {
+    async fn async_exec(self, env: &mut Env) -> anyhow::Result<()> {
         todo!()
     }
 }

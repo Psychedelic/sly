@@ -1,12 +1,13 @@
 use crate::lib::command::Command;
 use crate::lib::env::Env;
 use anyhow::Result;
-use std::{fs, io};
-use std::path::PathBuf;
 use clap::Parser as Clap;
+use std::path::PathBuf;
+use std::{fs, io};
 
 const FUNGIBLE_TOKEN_TEMPLATE: &[u8] = include_bytes!("../../../target/assets/fungible_token.zip");
-const NON_FUNGIBLE_TOKEN_TEMPLATE: &[u8] = include_bytes!("../../../target/assets/non_fungible_token.zip");
+const NON_FUNGIBLE_TOKEN_TEMPLATE: &[u8] =
+    include_bytes!("../../../target/assets/non_fungible_token.zip");
 const RUST_BACKEND: &[u8] = include_bytes!("../../../target/assets/rust_backend.zip");
 
 #[derive(Clap)]
@@ -24,7 +25,7 @@ impl Command for NewOpts {
             let reader = std::io::Cursor::new(FUNGIBLE_TOKEN_TEMPLATE);
             let destination = PathBuf::from(self.name);
             extract_from_zip(destination, reader);
-        } else if self.template ==  String::from("none_fungible_token") {
+        } else if self.template == String::from("none_fungible_token") {
             let reader = std::io::Cursor::new(NON_FUNGIBLE_TOKEN_TEMPLATE);
             let destination = PathBuf::from(self.name);
             extract_from_zip(destination, reader);

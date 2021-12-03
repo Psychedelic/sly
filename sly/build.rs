@@ -1,15 +1,16 @@
 use std::fs;
+use std::fs::File;
 use std::io::prelude::*;
 use std::io::{Seek, Write};
 use std::iter::Iterator;
-use zip::result::ZipError;
-use zip::write::FileOptions;
-use std::fs::File;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
+use zip::result::ZipError;
+use zip::write::FileOptions;
 
 fn process_template_directory(src_dir: &str, dst_file: &str) {
-    zip_directory(src_dir, dst_file, zip::CompressionMethod::Stored).expect(&format!("Failed to create zip file for '{}'", src_dir));
+    zip_directory(src_dir, dst_file, zip::CompressionMethod::Stored)
+        .expect(&format!("Failed to create zip file for '{}'", src_dir));
     println!("done: {} written to {}", src_dir, dst_file);
 }
 
@@ -75,12 +76,20 @@ fn zip_directory(
     Ok(())
 }
 
-
 fn main() {
     fs::create_dir_all("../target/assets").expect("Failed to create the target/assets/ directory.");
-    process_template_directory("../templates/fungible_token", "../target/assets/fungible_token.zip");
-    process_template_directory("../templates/non_fungible_token", "../target/assets/non_fungible_token.zip");
-    process_template_directory("../templates/rust_backend", "../target/assets/rust_backend.zip");
+    process_template_directory(
+        "../templates/fungible_token",
+        "../target/assets/fungible_token.zip",
+    );
+    process_template_directory(
+        "../templates/non_fungible_token",
+        "../target/assets/non_fungible_token.zip",
+    );
+    process_template_directory(
+        "../templates/rust_backend",
+        "../target/assets/rust_backend.zip",
+    );
 
     /* let template_paths = fs::read_dir("../templates").unwrap();
     for template in template_paths {
