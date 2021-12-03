@@ -1,9 +1,10 @@
 //! Manage the local instance of the replica.
 
+use anyhow::Result;
+use clap::Parser as Clap;
+
 use crate::lib::command::{AsyncCommand, Command};
 use crate::lib::env::Env;
-use anyhow::Result;
-use clap::Clap;
 
 mod start;
 mod status;

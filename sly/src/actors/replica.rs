@@ -1,13 +1,15 @@
-use crate::actors::child_process::{ChildProcessActor, ChildProcessActorConfig};
-use crate::actors::replica::signals::{PortChangeSubscribe, ProcessRestarted};
-use crate::actors::shutdown_controller::ShutdownController;
-use actix::{Actor, Addr, AsyncContext, Context, Handler, Recipient};
-use crossbeam::channel::Receiver;
-use garcon::{Delay, Waiter};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
+
+use actix::{Actor, Addr, AsyncContext, Context, Handler, Recipient};
+use crossbeam::channel::Receiver;
+use garcon::{Delay, Waiter};
+
+use crate::actors::child_process::{ChildProcessActor, ChildProcessActorConfig};
+use crate::actors::replica::signals::{PortChangeSubscribe, ProcessRestarted};
+use crate::actors::shutdown_controller::ShutdownController;
 
 pub mod signals {
     use actix::prelude::*;

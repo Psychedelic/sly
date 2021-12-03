@@ -1,10 +1,11 @@
-use crate::lib::command::Command;
-use crate::lib::env::Env;
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser as Clap;
 use human_panic::setup_panic;
 use log::LevelFilter;
 use pretty_env_logger::formatted_builder;
+
+use crate::lib::command::Command;
+use crate::lib::env::Env;
 
 mod actors;
 mod commands;

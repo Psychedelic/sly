@@ -4,8 +4,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use candid::Principal;
 
-use crate::commands::call::helper;
-use crate::commands::call::{Args, CallSubCommands};
+use crate::commands::call::waiter;
+use crate::commands::call::{helper, Args, CallSubCommands};
 use crate::lib::env::Env;
 use crate::lib::utils;
 
@@ -37,11 +37,11 @@ pub async fn async_exec(args: &Args, opts: &CallSubCommands, env: &Env) -> Resul
 
     let agent = env.create_agent().await?;
     let result = agent
-        .query(canister_id, method_name)
+        .update(canister_id, method_name)
         .with_effective_canister_id(effective_canister_id)
         .with_arg(&arg_blob)
         .expire_after(timeout)
-        .call()
+        .call_and_wait(waiter::waiter_with_exponential_backoff())
         .await;
 
     helper::print_agent_result(result, &opts.out_type, &method_type)

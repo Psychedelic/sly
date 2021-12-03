@@ -1,5 +1,6 @@
-use actix::{Actor, Addr, AsyncContext, Context, Handler, Recipient};
 use std::time::Duration;
+
+use actix::{Actor, Addr, AsyncContext, Context, Handler, Recipient};
 
 // This is copied with minor changes from
 // https://github.com/dfinity/sdk/blob/master/src/dfx/src/actors/shutdown_controller.rs

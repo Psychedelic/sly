@@ -6,13 +6,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "3.0.0-beta.4", features = ["yaml"] }
+clap = { version = "3.0.0-beta.5", features = ["yaml", "derive"] }
 dialoguer = "0.8.0"
 codespan-reporting = "0.11.1"
 lalrpop = "0.19.6"
 lalrpop-util = "0.19.6"
 unindent = "0.1.7"
-ic-agent = { version="0.8.0", features = ["pem"] }
+ic-agent = { version = "0.8.0", features = ["pem"] }
 ic-utils = "0.6.0"
 candid = "0.7.7"
 serde = "1.0.130"
@@ -37,7 +37,7 @@ futures = "0.3.17"
 ctrlc = "3.2.1"
 garcon = "0.2.3"
 hex = "0.4.3"
-num_cpus="1.13.0"
+num_cpus = "1.13.0"
 wabt = "0.10.0"
 binaryen = "0.12.0"
 humansize = "1.1.1"

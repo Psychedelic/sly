@@ -1,6 +1,7 @@
-use crate::wasm_optimizer::OptimizationPass;
 use anyhow::Result;
 use wabt::{wasm2wat, wat2wasm};
+
+use crate::wasm_optimizer::OptimizationPass;
 
 pub struct RemoveDebugSymbolsPass {}
 

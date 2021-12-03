@@ -1,9 +1,10 @@
+use anyhow::Result;
+use async_trait::async_trait;
+use clap::Parser as Clap;
+
 use crate::actors::{start_replica, start_shutdown_controller};
 use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;
-use anyhow::Result;
-use async_trait::async_trait;
-use clap::Clap;
 
 #[derive(Clap)]
 pub struct ReplicaStartOpts {

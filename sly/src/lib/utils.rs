@@ -1,10 +1,11 @@
+use std::str::FromStr;
+
 use anyhow::{bail, Context, Result};
 use candid::{CandidType, Decode, Deserialize, Principal};
 use ic_utils::interfaces::management_canister::{
     builders::{CanisterInstall, CanisterSettings},
     MgmtMethod,
 };
-use std::str::FromStr;
 
 /// Flatten a result, because .flatten() is unstable.
 #[inline]

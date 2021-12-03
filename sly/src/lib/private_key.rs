@@ -1,3 +1,6 @@
+use std::fs;
+use std::io::Read;
+
 use ic_agent::identity::{BasicIdentity, Secp256k1Identity};
 use ic_agent::Identity;
 use openssl::ec::{EcGroup, EcKey};
@@ -5,8 +8,6 @@ use openssl::nid::Nid;
 use openssl::pkey::Private;
 use pem::Pem;
 use ring::signature::Ed25519KeyPair;
-use std::fs;
-use std::io::Read;
 
 /// A key that can be converted to a Identity.
 #[derive(Clone)]
