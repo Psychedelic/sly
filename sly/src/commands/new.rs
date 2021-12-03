@@ -14,7 +14,7 @@ pub struct NewOpts {
     #[clap(long)]
     name: String,
     /// The template to use for the new project.
-    #[clap(long, default_value = "simple")]
+    #[clap(long, default_value = "rust_backend")]
     template: String,
 }
 
