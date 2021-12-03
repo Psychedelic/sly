@@ -6,3 +6,4 @@ pub mod identity_store;
 pub mod private_key;
 pub mod toolchain;
 pub mod utils;
+pub mod workspace;
