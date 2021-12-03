@@ -12,11 +12,11 @@ const RUST_BACKEND: &[u8] = include_bytes!("../../../target/assets/rust_backend.
 
 #[derive(Clap)]
 pub struct NewOpts {
-    #[clap(long)]
-    name: String,
     /// The template to use for the new project.
     #[clap(long, default_value = "rust_backend")]
     template: String,
+    /// Name of the new project.
+    name: String,
 }
 
 impl Command for NewOpts {
