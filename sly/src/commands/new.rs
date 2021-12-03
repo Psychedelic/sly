@@ -2,9 +2,12 @@ use crate::lib::command::Command;
 use crate::lib::env::Env;
 use anyhow::Result;
 use std::{fs, io};
-use std::path::Path;
+use std::path::PathBuf;
 use clap::Parser as Clap;
-use mkdirp::mkdirp;
+
+const FUNGIBLE_TOKEN_TEMPLATE: &[u8] = include_bytes!("../../../target/assets/fungible_token.zip");
+const NON_FUNGIBLE_TOKEN_TEMPLATE: &[u8] = include_bytes!("../../../target/assets/non_fungible_token.zip");
+const RUST_BACKEND: &[u8] = include_bytes!("../../../target/assets/rust_backend.zip");
 
 #[derive(Clap)]
 pub struct NewOpts {
@@ -18,24 +21,29 @@ pub struct NewOpts {
 impl Command for NewOpts {
     fn exec(self, _: &mut Env) -> Result<(), anyhow::Error> {
         if self.template == String::from("fungible_token") {
-            mkdirp(Path::new(&self.name));
-            extract_from_zip(&String::from("../fungible_token.zip"));
+            let reader = std::io::Cursor::new(FUNGIBLE_TOKEN_TEMPLATE);
+            let destination = PathBuf::from(self.name);
+            extract_from_zip(destination, reader);
+        } else if self.template ==  String::from("none_fungible_token") {
+            let reader = std::io::Cursor::new(NON_FUNGIBLE_TOKEN_TEMPLATE);
+            let destination = PathBuf::from(self.name);
+            extract_from_zip(destination, reader);
+        } else if self.template == String::from("rust_backend") {
+            let reader = std::io::Cursor::new(RUST_BACKEND);
+            let destination = PathBuf::from(self.name);
+            extract_from_zip(destination, reader);
         }
         Ok(())
     }
 }
 
-fn extract_from_zip(file_name: &String) {
-    let fname = std::path::Path::new(file_name);
-    println!("{}", fname.display());
-    let file = fs::File::open(&fname).unwrap();
-
-    let mut archive = zip::ZipArchive::new(file).unwrap();
+fn extract_from_zip<R: std::io::Read + std::io::Seek>(destination: PathBuf, reader: R) {
+    let mut archive = zip::ZipArchive::new(reader).unwrap();
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
         let outpath = match file.enclosed_name() {
-            Some(path) => path.to_owned(),
+            Some(path) => destination.join(path),
             None => continue,
         };
 

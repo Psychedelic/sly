@@ -8,38 +8,9 @@ use std::fs::File;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
 
-const METHOD_STORED: Option<zip::CompressionMethod> = Some(zip::CompressionMethod::Stored);
-
-#[cfg(any(
-    feature = "deflate",
-    feature = "deflate-miniz",
-    feature = "deflate-zlib"
-))]
-const METHOD_DEFLATED: Option<zip::CompressionMethod> = Some(zip::CompressionMethod::Deflated);
-#[cfg(not(any(
-    feature = "deflate",
-    feature = "deflate-miniz",
-    feature = "deflate-zlib"
-)))]
-const METHOD_DEFLATED: Option<zip::CompressionMethod> = None;
-
-#[cfg(feature = "bzip2")]
-const METHOD_BZIP2: Option<zip::CompressionMethod> = Some(zip::CompressionMethod::Bzip2);
-#[cfg(not(feature = "bzip2"))]
-const METHOD_BZIP2: Option<zip::CompressionMethod> = None;
-
-fn real_main(src_dir: &str, dst_file: &str) -> i32 {
-    for &method in [METHOD_STORED, METHOD_DEFLATED, METHOD_BZIP2].iter() {
-        if method.is_none() {
-            continue;
-        }
-        match doit(src_dir, dst_file, method.unwrap()) {
-            Ok(_) => println!("done: {} written to {}", src_dir, dst_file),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
-    return 0;
+fn process_template_directory(src_dir: &str, dst_file: &str) {
+    zip_directory(src_dir, dst_file, zip::CompressionMethod::Stored).expect(&format!("Failed to create zip file for '{}'", src_dir));
+    println!("done: {} written to {}", src_dir, dst_file);
 }
 
 fn zip_dir<T>(
@@ -84,7 +55,7 @@ where
     Result::Ok(())
 }
 
-fn doit(
+fn zip_directory(
     src_dir: &str,
     dst_file: &str,
     method: zip::CompressionMethod,
@@ -106,11 +77,15 @@ fn doit(
 
 
 fn main() {
-    let template_paths = fs::read_dir("../templates").unwrap();
+    fs::create_dir_all("../target/assets").expect("Failed to create the target/assets/ directory.");
+    process_template_directory("../templates/fungible_token", "../target/assets/fungible_token.zip");
+    process_template_directory("../templates/non_fungible_token", "../target/assets/non_fungible_token.zip");
+    process_template_directory("../templates/rust_backend", "../target/assets/rust_backend.zip");
 
+    /* let template_paths = fs::read_dir("../templates").unwrap();
     for template in template_paths {
-        // println!("Name: {}", template.unwrap().path().display());
-        // let template_dir = template.unwrap().path().display();
-        std::process::exit(real_main(&String::from("../templates/fungible_token"), &String::from("fungible_token.zip")));
-    }
+        println!("Name: {}", template.unwrap().path().display());
+        let template_dir = template.unwrap().path().to_str().unwrap();
+        process_template_directory(template_dir, "../target/assets/fungible_token.zip");
+    } */
 }
