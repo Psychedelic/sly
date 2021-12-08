@@ -35,7 +35,7 @@ impl AsyncCommand for CreateCanisterOpts {
         for name in &self.canisters {
             workspace
                 .get_canister(name)
-                .ok_or(anyhow!("Canister '{}' not found.", name))?;
+                .ok_or_else(|| anyhow!("Canister '{}' not found.", name))?;
         }
 
         let json_path = workspace.root.join("canister_ids.json");

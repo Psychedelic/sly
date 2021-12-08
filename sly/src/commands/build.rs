@@ -1,6 +1,6 @@
 use crate::lib::command::Command;
 use crate::lib::env::Env;
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Context};
 use clap::Parser as Clap;
 use std::process::Command as CommandExec;
 
@@ -18,23 +18,27 @@ pub struct BuildOpts {
 
 impl Command for BuildOpts {
     fn exec(self, env: &mut Env) -> anyhow::Result<()> {
+        if !self.canisters.is_empty() && self.all {
+            bail!("Unexpect canisters list when --all is provided.");
+        }
+
         let workspace = env.workspace()?;
+
+        for name in &self.canisters {
+            workspace
+                .get_canister(name)
+                .ok_or_else(|| anyhow!("Canister '{}' not found.", name))?;
+        }
+
         let canisters = if self.all {
             workspace.canisters.keys().cloned().collect()
         } else {
             self.canisters.clone()
         };
 
-        // for checking if canisters exist
-        for canister in &canisters {
-            if workspace.get_canister(canister).is_none() {
-                bail!("Canister '{}' not found", canister);
-            }
-        }
-
-        for canister in canisters {
+        for name in canisters {
             let commands = workspace
-                .get_canister(&canister)
+                .get_canister(&name)
                 .unwrap()
                 .build
                 .get(&self.with_mode)
@@ -46,9 +50,10 @@ impl Command for BuildOpts {
                     .arg("-c")
                     .arg(command)
                     .spawn()
-                    .expect("SH failed to parse the command");
+                    .with_context(|| format!("Could not execute command '{}'", command))?;
             }
         }
+
         Ok(())
     }
 }
