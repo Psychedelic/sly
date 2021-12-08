@@ -15,9 +15,9 @@ use crate::lib::env::Env;
 pub struct CreateCanisterOpts {
     /// Create a canister for all the canisters in sly.json.
     #[clap(long)]
-    all: bool,
+    pub all: bool,
     /// The canister to create.
-    canisters: Vec<String>,
+    pub canisters: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]

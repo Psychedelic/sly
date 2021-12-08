@@ -8,15 +8,15 @@ use crate::lib::env::Env;
 pub struct InstallOpts {
     /// The installation mode.
     #[clap(short, long, possible_values = & (["install", "reinstall", "upgrade"]), default_value = "install")]
-    mode: String,
+    pub mode: String,
     /// For conditional sly.json evaluation.
     #[clap(long, default_value = "default")]
-    with_mode: String,
+    pub with_mode: String,
     /// Install the code for all of the canisters in sly.json.
     #[clap(long)]
-    all: bool,
+    pub all: bool,
     /// The canister to install.
-    canisters: Vec<String>,
+    pub canisters: Vec<String>,
 }
 
 #[async_trait]
