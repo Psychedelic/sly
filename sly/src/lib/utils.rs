@@ -17,14 +17,6 @@ pub fn result_flatten<T, E>(result: Result<Result<T, E>, E>) -> Result<T, E> {
     }
 }
 
-/// Checks if the provided string is a valid principal id.
-#[inline]
-fn is_principal(text: &str) -> Result<(), String> {
-    Principal::from_text(text)
-        .map(|_| ())
-        .map_err(|_| "Not a valid principal id.".to_string())
-}
-
 /// Get effective canister id
 pub fn get_effective_canister_id(
     method_name: &str,

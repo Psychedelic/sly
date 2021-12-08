@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate clap;
-
 use anyhow::Result;
 use clap::Parser as Clap;
 use human_panic::setup_panic;

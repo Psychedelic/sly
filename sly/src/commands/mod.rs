@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{AppSettings, Parser as Clap};
+use clap::Parser as Clap;
 use std::path::PathBuf;
 
 use crate::lib::command::{AsyncCommand, Command};
@@ -20,7 +20,6 @@ mod wasm;
 /// Psychedelic's CLI for the Internet Computer.
 #[derive(Clap)]
 #[clap(version = "0.1", author = "Psychedelic Team")]
-// #[clap(global_setting = AppSettings::ColoredHelp)]
 pub struct App {
     /// The network to use when making calls to the I.C.
     #[clap(short, long, default_value = "local")]
