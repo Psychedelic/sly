@@ -10,7 +10,7 @@ use zip::write::FileOptions;
 
 fn process_template_directory(src_dir: &str, dst_file: &str) {
     zip_directory(src_dir, dst_file, zip::CompressionMethod::Stored)
-        .expect(&format!("Failed to create zip file for '{}'", src_dir));
+        .unwrap_or_else(|_| panic!("Failed to create zip file for '{}'", src_dir));
     println!("done: {} written to {}", src_dir, dst_file);
 }
 
@@ -44,7 +44,7 @@ where
             f.read_to_end(&mut buffer)?;
             zip.write_all(&*buffer)?;
             buffer.clear();
-        } else if name.as_os_str().len() != 0 {
+        } else if !name.as_os_str().is_empty() {
             // Only if not root! Avoids path spec / warning
             // and mapname conversion failed error on unzip
             println!("adding dir {:?} as {:?} ...", path, name);

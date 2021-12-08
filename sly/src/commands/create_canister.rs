@@ -29,7 +29,7 @@ struct CanisterIdJson(BTreeMap<String, BTreeMap<String, Principal>>);
 #[async_trait]
 impl AsyncCommand for CreateCanisterOpts {
     async fn async_exec(self, env: &mut Env) -> anyhow::Result<()> {
-        if self.canisters.len() > 0 && self.all {
+        if !self.canisters.is_empty() && self.all {
             bail!("Unexpect canisters list when --all is provided.");
         }
 

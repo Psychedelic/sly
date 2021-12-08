@@ -53,7 +53,7 @@ impl Workspace {
         let reader = std::fs::File::open(path.clone())
             .with_context(|| format!("Failed to open file '{}'", path.to_string_lossy()))?;
 
-        return Self::from_reader(root, reader);
+        Self::from_reader(root, reader)
     }
 
     /// Create a workspace from a Sly.json that is located in the given `root` directory.
@@ -156,12 +156,12 @@ mod manifest {
         }
     }
 
-    impl<T, U> Into<BTreeMap<String, U>> for WithMode<T>
+    impl<T, U> From<WithMode<T>> for BTreeMap<String, U>
     where
         T: Into<U>,
     {
-        fn into(self) -> BTreeMap<String, U> {
-            match self {
+        fn from(mode: WithMode<T>) -> Self {
+            match mode {
                 WithMode::Mode(data) => {
                     let mut map = BTreeMap::new();
                     for (key, value) in data {
@@ -178,9 +178,9 @@ mod manifest {
         }
     }
 
-    impl Into<Vec<String>> for Command {
-        fn into(self) -> Vec<String> {
-            match self {
+    impl From<Command> for Vec<String> {
+        fn from(cmd: Command) -> Self {
+            match cmd {
                 Command::Command(command) => vec![command],
                 Command::Commands(commands) => commands,
             }

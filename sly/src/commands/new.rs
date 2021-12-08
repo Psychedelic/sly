@@ -21,15 +21,15 @@ pub struct NewOpts {
 
 impl Command for NewOpts {
     fn exec(self, _: &mut Env) -> Result<(), anyhow::Error> {
-        if self.template == String::from("fungible_token") {
+        if self.template == *"fungible_token" {
             let reader = std::io::Cursor::new(FUNGIBLE_TOKEN_TEMPLATE);
             let destination = PathBuf::from(self.name);
             extract_from_zip(destination, reader);
-        } else if self.template == String::from("none_fungible_token") {
+        } else if self.template == *"none_fungible_token" {
             let reader = std::io::Cursor::new(NON_FUNGIBLE_TOKEN_TEMPLATE);
             let destination = PathBuf::from(self.name);
             extract_from_zip(destination, reader);
-        } else if self.template == String::from("rust_backend") {
+        } else if self.template == *"rust_backend" {
             let reader = std::io::Cursor::new(RUST_BACKEND);
             let destination = PathBuf::from(self.name);
             extract_from_zip(destination, reader);

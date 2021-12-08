@@ -42,7 +42,7 @@ impl Command for BuildOpts {
                 .unwrap()
                 .build
                 .get(&self.with_mode)
-                .ok_or(anyhow!("Wrong with_mode parameter"))?;
+                .ok_or_else(|| anyhow!("Wrong with_mode parameter"))?;
 
             for command in commands {
                 // TODO: Shell Expand
