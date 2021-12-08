@@ -1,0 +1,17 @@
+{
+    "canisters": {
+        "demo": {
+            "build": {
+                "release": [
+                    "cargo build --target wasm32-unknown-unknown --release"
+                ],
+                "debug": "echo this"
+            },
+            "wasm": {
+                "release": "./target/debug/cap-release.wasm",
+                "debug": "./target/debug/cap-debug.wasm"
+            }
+        }
+    }
+}
+  
