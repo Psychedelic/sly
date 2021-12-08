@@ -5,10 +5,10 @@ use clap::Parser as Clap;
 use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;
 
-mod helper;
-mod query;
-mod update;
-mod waiter;
+pub mod helper;
+pub mod query;
+pub mod update;
+pub mod waiter;
 
 #[derive(Clap)]
 pub struct CallSubCommands {

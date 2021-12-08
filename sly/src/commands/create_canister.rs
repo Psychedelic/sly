@@ -4,10 +4,13 @@ use clap::Parser as Clap;
 use futures::future::join_all;
 use ic_agent::ic_types::Principal;
 use ic_agent::Agent;
+use ic_utils::call::AsyncCall;
+use ic_utils::interfaces::{ManagementCanister, Wallet};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
+use crate::commands::call::waiter;
 use crate::lib::command::AsyncCommand;
 use crate::lib::env::Env;
 
@@ -31,6 +34,15 @@ impl AsyncCommand for CreateCanisterOpts {
         }
 
         let workspace = env.workspace()?;
+        let host = env.network();
+        let use_provisional = host == "local";
+
+        // Use a different file for local env so people can gitignore it.
+        let filename = if host == "local" {
+            "canister_ids-local.json"
+        } else {
+            "canister_ids.json"
+        };
 
         for name in &self.canisters {
             workspace
@@ -38,23 +50,23 @@ impl AsyncCommand for CreateCanisterOpts {
                 .ok_or_else(|| anyhow!("Canister '{}' not found.", name))?;
         }
 
-        let json_path = workspace.root.join("canister_ids.json");
+        let json_path = workspace.root.join(filename);
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .read(true)
             .open(json_path)
-            .context("Failed to open canister_ids.json")?;
+            .with_context(|| format!("Failed to open {}", filename))?;
 
         let mut json = String::new();
         file.read_to_string(&mut json)
-            .context("Failed to read canister_ids.json")?;
+            .with_context(|| format!("Failed to read {}", filename))?;
 
         let mut canister_ids = if json.is_empty() {
             CanisterIdJson(BTreeMap::new())
         } else {
             serde_json::from_str::<CanisterIdJson>(&json)
-                .context("Failed to parse canister_ids.json")?
+                .with_context(|| format!("Failed to parse {}", filename))?
         };
 
         // Name of the canisters we should create a canister for.
@@ -65,8 +77,6 @@ impl AsyncCommand for CreateCanisterOpts {
         };
 
         let agent = env.create_agent().await?;
-        let host = env.network();
-        let use_provisional = host == "local";
 
         let to_create = canisters
             .into_iter()
@@ -93,11 +103,11 @@ impl AsyncCommand for CreateCanisterOpts {
         }
 
         let json = serde_json::to_string_pretty(&canister_ids)
-            .context("Failed to serialize canister_ids.json")?;
+            .context("Failed to serialize canister ids.")?;
         file.write(json.as_bytes())
-            .context("Failed to write to canister_ids.json")?;
+            .with_context(|| format!("Failed to write {}'s content.", filename))?;
         file.set_len(json.len() as u64)
-            .context("Failed to truncate canister_ids.json")?;
+            .with_context(|| format!("Failed to truncate {}", filename))?;
 
         if had_error {
             bail!("Some of the canisters were not created.")
@@ -108,5 +118,33 @@ impl AsyncCommand for CreateCanisterOpts {
 }
 
 async fn create_canister(use_provisional: bool, agent: &Agent) -> anyhow::Result<Principal> {
-    todo!()
+    if use_provisional {
+        log::trace!("Creating a canister using provisional_create_canister_with_cycles");
+
+        let management = ManagementCanister::create(agent);
+        let (canister_id,) = management
+            .create_canister()
+            .as_provisional_create_with_amount(Some(100_000_000_000_000))
+            .build()
+            .unwrap()
+            .call_and_wait(waiter::waiter_with_exponential_backoff())
+            .await
+            .context("provisional_create_canister_with_cycles call failed.")?;
+
+        Ok(canister_id)
+    } else {
+        log::trace!("Creating a canister using XTC wallet");
+
+        let xtc = Principal::from_text("aanaa-xaaaa-aaaah-aaeiq-cai").unwrap();
+        let canister_id = Wallet::create(agent, xtc)
+            .wallet_create_canister(4_000_000_000_000, None, None, None, None)
+            .call_and_wait(waiter::waiter_with_exponential_backoff())
+            .await
+            .context("XTC create canister call failed.")?
+            .0
+            .map_err(|e| anyhow!("XTC error: {}", e))?
+            .canister_id;
+
+        Ok(canister_id)
+    }
 }
