@@ -137,6 +137,14 @@ impl Env {
         *workspace = Some(w.clone());
         Ok(w)
     }
+
+    pub fn network(&self) -> String {
+        match self.network.as_str() {
+            "ic" => "ic".to_string(),
+            "local" => "local".to_string(),
+            _ => self.ic_url().unwrap(),
+        }
+    }
 }
 
 fn parse_network(network: &str) -> Result<String> {
