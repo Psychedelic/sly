@@ -48,8 +48,12 @@ impl AsyncCommand for InstallOpts {
         };
 
         let json_path = workspace.root.join(filename);
-        let json = std::fs::read_to_string(json_path)
-            .with_context(|| format!("Could not read {}", filename))?;
+        let json = std::fs::read_to_string(json_path).with_context(|| {
+            format!(
+                "Could not read {}. Run 'sly create_canister' first.",
+                filename
+            )
+        })?;
         let canister_ids = serde_json::from_str::<CanisterIdJson>(&json)
             .with_context(|| format!("Could not parse {}", filename))?;
 

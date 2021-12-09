@@ -25,9 +25,15 @@ impl Command for BuildOpts {
         let workspace = env.workspace()?;
 
         for name in &self.canisters {
-            workspace
+            let build = &workspace
                 .get_canister(name)
-                .ok_or_else(|| anyhow!("Canister '{}' not found.", name))?;
+                .ok_or_else(|| anyhow!("Canister '{}' not found.", name))?
+                .build;
+
+            let modes = build.keys().cloned().collect::<Vec<_>>();
+            build
+                .get(&self.with_mode)
+                .ok_or_else(|| anyhow!("Canister '{}' does not have a build command for mode '{}'. Use --with-mode=[{}]", name, self.with_mode, modes.join("/")))?;
         }
 
         let canisters = if self.all {
@@ -42,7 +48,7 @@ impl Command for BuildOpts {
                 .unwrap()
                 .build
                 .get(&self.with_mode)
-                .ok_or_else(|| anyhow!("Wrong with_mode parameter"))?;
+                .unwrap();
 
             for command in commands {
                 // TODO: Shell Expand
