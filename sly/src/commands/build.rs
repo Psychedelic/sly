@@ -43,7 +43,6 @@ impl Command for BuildOpts {
                 .ok_or_else(|| anyhow!("Canister '{}' does not have a build command for mode '{}'. Use --with-mode=[{}]", name, self.with_mode, modes.join("/")))?;
         }
 
-
         for name in canisters {
             let commands = workspace
                 .get_canister(&name)

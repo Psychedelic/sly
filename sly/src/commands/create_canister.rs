@@ -137,12 +137,16 @@ async fn create_canister(use_provisional: bool, agent: &Agent) -> anyhow::Result
 
         let xtc = Principal::from_text("aanaa-xaaaa-aaaah-aaeiq-cai").unwrap();
         let canister_id = Wallet::create(agent, xtc)
-            .wallet_create_canister(4_000_000_000_000, None, None, None, None)
-            .call_and_wait(waiter::waiter_with_exponential_backoff())
+            .wallet_create_canister(
+                4_000_000_000_000,
+                None,
+                None,
+                None,
+                None,
+                waiter::waiter_with_exponential_backoff(),
+            )
             .await
             .context("XTC create canister call failed.")?
-            .0
-            .map_err(|e| anyhow!("XTC error: {}", e))?
             .canister_id;
 
         Ok(canister_id)
