@@ -13,3 +13,13 @@ overflow-checks = true
 
 [patch.crates-io]
 candid = { git = 'https://github.com/Psychedelic/candid' }
+
+[patch.crates-io.ic-agent]
+version = "0.10.0"
+git = "https://github.com/dfinity/agent-rs.git"
+rev = "dc47d2ddb311ff8695d422adac5c8842b152beac"
+
+[patch.crates-io.ic-utils]
+version = "0.10.0"
+git = "https://github.com/dfinity/agent-rs.git"
+rev = "dc47d2ddb311ff8695d422adac5c8842b152beac"
